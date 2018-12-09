@@ -20,7 +20,7 @@
 
 #pragma warning (push)
 #pragma warning (disable:4200)
-#include <libusb-1.0/libusb.h>
+#include <libusb/libusb.h>
 #pragma warning (pop)
 
 #include <iostream>
@@ -33,7 +33,8 @@
 #pragma comment (lib, "winmm.lib")
 #endif
 
-
+
+
 // ........................................................ LibusbError ....
 
 LibusbError::~LibusbError()

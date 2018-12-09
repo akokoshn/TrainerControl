@@ -24,7 +24,7 @@
 // TODO: move libusb in the C++ file
 #pragma warning (push)
 #pragma warning (disable: 4200)
-#include <libusb-1.0/libusb.h>
+#include <libusb/libusb.h>
 #pragma warning (pop)
 
 typedef std::vector<uint8_t> Buffer;
