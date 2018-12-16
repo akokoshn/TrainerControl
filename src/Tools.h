@@ -25,7 +25,10 @@
 #include <string.h>
 #include <stdint.h>
 
-
+
+#define DEBUG
+//#define DEBUG_DUMP
+
 // .................................................... LibusbError ....
 
 /** Convenience class to throw exception with USB error codes and get proper
@@ -80,6 +83,18 @@ private:
  * character and binary data.
  */
 void DumpData (const unsigned char *data, int size, std::ostream &o);
+
+/**Print debug message
+*/
+#if defined(DEBUG)
+#define LOG_MSG(msg) printf(msg)
+#define LOG_D(val) printf("%d\n", val)
+#define LOG_F(val) printf("%f\n", val)
+#else
+#define LOG_MSG(msg)
+#define LOG_D(val)
+#define LOG_F(val)
+#endif
 
 
 /** Return a timestamps in milliseconds from an unspecified epoch.  Can be

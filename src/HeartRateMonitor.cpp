@@ -84,11 +84,8 @@ void HeartRateMonitor::OnStateChanged (
     AntChannel::State old_state, AntChannel::State new_state)
 {
     if (new_state == AntChannel::CH_OPEN) {
-        std::cout << "Connected to HRM with serial " << ChannelId().DeviceNumber << std::endl;
-    }
-
-
-    if (new_state != AntChannel::CH_OPEN) {
+        LOG_MSG("Connected to HRM with serial "); LOG_D(ChannelId().DeviceNumber);
+    } else {
         m_LastMeasurementTime = 0;
         m_MeasurementTime = 0;
         m_HeartBeats = 0;

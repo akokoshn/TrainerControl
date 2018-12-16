@@ -109,6 +109,7 @@ const char* Win32Error::what() const
  */
 void DumpData (const unsigned char *data, int size, std::ostream &o)
 {
+#if defined(DEBUG_DUMP)
     int ncols = 16;
     int nrows = size / ncols;
     int spill = size - nrows * ncols;
@@ -170,6 +171,11 @@ void DumpData (const unsigned char *data, int size, std::ostream &o)
     }
 
     o.flags (saved);
+#else
+    (void)data;
+    (void)size;
+    (void)o;
+#endif
 }
 
 uint32_t CurrentMilliseconds()

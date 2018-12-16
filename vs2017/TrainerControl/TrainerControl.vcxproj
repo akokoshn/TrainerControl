@@ -22,6 +22,7 @@
     <ClInclude Include="..\..\src\AntStick.h" />
     <ClInclude Include="..\..\src\FitnessEquipmentControl.h" />
     <ClInclude Include="..\..\src\HeartRateMonitor.h" />
+    <ClInclude Include="..\..\src\Mock.h" />
     <ClInclude Include="..\..\src\NetTools.h" />
     <ClInclude Include="..\..\src\stdafx.h" />
     <ClInclude Include="..\..\src\targetver.h" />

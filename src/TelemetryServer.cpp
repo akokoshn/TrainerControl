@@ -75,7 +75,7 @@ TelemetryServer::TelemetryServer (AntStick *stick, int port)
 {
     try {
         auto server = tcp_listen(port);
-        std::cout << "Started server on port " << port << std::endl;
+        LOG_MSG("Started server on port "); LOG_D(port);
         m_Clients.push_back(server);
         m_Hrm = new HeartRateMonitor (m_AntStick);
         m_Fec = new FitnessEquipmentControl (m_AntStick);
@@ -117,7 +117,7 @@ void TelemetryServer::Tick()
 void TelemetryServer::CheckSensorHealth()
 {
     if (m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_CLOSED) {
-        std::cout << "Creating new HRM channel" << std::endl;
+        LOG_MSG("Creating new HRM channel");
         auto device_number = m_Hrm->ChannelId().DeviceNumber;
         delete m_Hrm;
         m_Hrm = nullptr;
@@ -157,7 +157,7 @@ void TelemetryServer::ProcessClients(const Telemetry &t)
     // means there's a client waiting on it
     if (status[0] & SK_READ) {
         auto client = tcp_accept(m_Clients[0]);
-        std::cout << "Accepted connection from " << get_peer_name(client) << std::endl;
+        LOG_MSG("Accepted connection from "); LOG_MSG(get_peer_name(client).c_str()); LOG_MSG("\n");
         m_Clients.push_back(client);
     }
 
@@ -185,7 +185,7 @@ void TelemetryServer::ProcessClients(const Telemetry &t)
     // remove any closed sockets from the list
     auto e = end(m_Clients);
     for (auto i = begin(closed_sockets); i != end(closed_sockets); i++) {
-        std::cout << "Closing socket for " << get_peer_name(*i) << std::endl;
+        LOG_MSG("Closing socket for "); LOG_MSG(get_peer_name(*i).c_str()); LOG_MSG("\n");
         e = std::remove(begin(m_Clients), e, *i);
         closesocket(*i);
     }
@@ -194,7 +194,6 @@ void TelemetryServer::ProcessClients(const Telemetry &t)
 
 void TelemetryServer::ProcessMessage(const std::string &message)
 {
-    //std::cout << "Received message: <" << message << ">\n";
     std::istringstream input(message);
     std::string command;
     double param;

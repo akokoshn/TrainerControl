@@ -164,10 +164,8 @@ void FitnessEquipmentControl::OnMessageReceived(const uint8_t *data, int size)
         ProcessCapabilitiesPage(data + 4, size - 4);
         break;
     default:
-#if 0
-        std::cout << "FitnessEquipmentControl unknown data page: \n";
+        LOG_MSG("FitnessEquipmentControl unknown data page: \n");
         DumpData(data, size, std::cout);
-#endif
         break;
     }
 
@@ -184,11 +182,11 @@ void FitnessEquipmentControl::OnMessageReceived(const uint8_t *data, int size)
 
 void FitnessEquipmentControl::SendUserConfigPage()
 {
-    std::cout << "Sending user config:\n"
-        << "\tRider Weight:   " << std::setprecision(2) << m_UserWeight << " kg\n"
-        << "\tBike Weight:    " << std::setprecision(2) << m_BikeWeight << " kg\n"
-        << "\tWheel Diameter: " << std::setprecision(4) << m_BikeWheelDiameter << " meters"
-        << std::endl;
+    LOG_MSG("Sending user config:\n");
+    LOG_MSG("Rider Weight : "); LOG_F(m_UserWeight);
+    LOG_MSG("Bike Weight : "); LOG_F(m_BikeWheelDiameter);
+    LOG_MSG("Wheel Diameter: "); LOG_F(m_BikeWeight);
+
     uint16_t uw = static_cast<uint16_t>(m_UserWeight / 0.01);
     uint16_t bw = static_cast<uint16_t>(m_BikeWeight / 0.05);
     // Wheel size in centimeters
@@ -272,6 +270,13 @@ void FitnessEquipmentControl::ProcessCapabilitiesPage(
             << (m_TargetPowerControl ? "; Target Power" : "")
             << (m_SimulationControl ? "; Simulation" : "")
             << std::endl;
+        LOG_MSG("Got trainer capabilities:\n");
+        LOG_MSG("Max Resistance: "); LOG_F(m_MaxResistance); LOG_MSG(" Newtons\n");
+        LOG_MSG("\tControl Modes:  ");
+        LOG_MSG((m_BasicResistanceControl ? "Basic Resistance" : ""));
+        LOG_MSG((m_TargetPowerControl ? "; Target Power" : ""));
+        LOG_MSG((m_SimulationControl ? "; Simulation" : ""));
+        LOG_MSG("\n");
     }
 }
 
@@ -294,7 +299,7 @@ void FitnessEquipmentControl::OnStateChanged (
     AntChannel::State old_state, AntChannel::State new_state)
 {
     if (new_state == AntChannel::CH_OPEN) {
-        std::cout << "Connected to ANT+ FE-C with serial " << ChannelId().DeviceNumber << std::endl;
+        LOG_MSG("Connected to ANT+ FE-C with serial "); LOG_D(ChannelId().DeviceNumber);
     }
 
     if (new_state != AntChannel::CH_OPEN) {
@@ -320,7 +325,7 @@ void FitnessEquipmentControl::OnStateChanged (
 
 void FitnessEquipmentControl::SetSlope(double slope)
 {
-    std::cout << "Set Slope to " << slope << std::endl;
+    LOG_MSG("Set Slope to "); LOG_F(slope);
     m_Slope = slope;
     SendTrackResistanceDataPage();
 }

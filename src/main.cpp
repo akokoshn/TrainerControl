@@ -26,7 +26,7 @@
 #include <iostream>
 #include <iostream>
 
-void ProcessChannels(AntStick &s, std::ostream &log)
+void ProcessChannels(AntStick &s)
 {
     try {
         TelemetryServer server (&s);
@@ -35,37 +35,35 @@ void ProcessChannels(AntStick &s, std::ostream &log)
         }
     }
     catch (std::exception &e) {
-        log << e.what() << std::endl;
+        LOG_MSG(e.what());
     }
 }
 
-void ProcessAntSticks(std::ostream &log)
+void ProcessAntSticks()
 {
     while (true) {
         try {
             AntStick a;
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
-            log << std::put_time(&tm, "%c");
-            log << " USB Stick: Serial#: " << a.GetSerialNumber()
-                << ", version " << a.GetVersion()
-                << ", max " << a.GetMaxNetworks() << " networks, max "
-                << a.GetMaxChannels() << " channels\n" << std::flush;
+            LOG_MSG(" USB Stick: Serial#: "); LOG_D(a.GetSerialNumber());
+            LOG_MSG(", version "); LOG_MSG(a.GetVersion().c_str());
+            LOG_MSG(", max "); LOG_D(a.GetMaxNetworks()); 
+            LOG_MSG(" networks, max "); LOG_D(a.GetMaxChannels());
+            LOG_MSG(" channels\n");
             a.SetNetworkKey(AntStick::g_AntPlusNetworkKey);
-            ProcessChannels(a, log);
+            ProcessChannels(a);
         }
         catch (const AntStickNotFound &e) {
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
-            log << std::put_time(&tm, "%c");
-            log << e.what() << std::endl;
+            LOG_MSG(e.what());
             return;
         }
         catch (std::exception &e) {
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
-            log << std::put_time(&tm, "%c");
-            log << e.what() << std::endl;
+            LOG_MSG(e.what());
         }
     }
 }
@@ -76,10 +74,10 @@ int main()
         int r = libusb_init(NULL);
         if (r < 0)
             throw LibusbError("libusb_init", r);
-        ProcessAntSticks(std::cout);
+        ProcessAntSticks();
     }
     catch (const std::exception &e) {
-        std::cout << e.what() << "\n";
+        LOG_MSG(e.what()); LOG_MSG("\n");
         return 1;
     }
     return 0;

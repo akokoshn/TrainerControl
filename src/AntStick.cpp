@@ -18,6 +18,7 @@
 #include "stdafx.h"
 #include "AntStick.h"
 #include "Tools.h"
+#include "Mock.h"
 
 #include <iostream>
 #include <algorithm>
@@ -66,7 +67,7 @@ void CheckChannelResponse (
         || response[4] != cmd
         || response[5] != status)
     {
-#if defined DEBUG_OUTPUT
+#if defined (DEBUG_DUMP)
         DumpData(&response[0], response.size(), std::cerr);
         std::cerr << "expecting channel: " << (int)channel
                   << ", cmd  " << (int)cmd << ", status " << (int)status << "\n";
@@ -493,7 +494,7 @@ void AntMessageWriter::SubmitUsbTransfer()
 
     libusb_fill_bulk_transfer (
         m_Transfer, m_DeviceHandle, m_Endpoint,
-        &m_Buffer[0], m_Buffer.size(), Trampoline, this, timeout);
+        &m_Buffer[0], (int)m_Buffer.size(), Trampoline, this, timeout);
 
     int r = libusb_submit_transfer (m_Transfer);
     if (r < 0)
@@ -648,7 +649,7 @@ void AntChannel::HandleMessage(const uint8_t *data, int size)
     if (m_State == CH_CLOSED) {
         // We should not receive messages if we are closed, maybe we should
         // throw?
-#if defined DEBUG_OUTPUT
+#if defined DEBUG_DUMP
         std::cerr << "AntChannel::HandleMessage -- received a message while closed\n";
         DumpData(data, size, std::cerr);
 #endif
@@ -850,12 +851,15 @@ int num_ant_stick_devid = sizeof(ant_stick_devid) / sizeof(ant_stick_devid[0]);
  */
 libusb_device* FindAntStick()
 {
+    libusb_device *ant_stick = nullptr; // the one we are looking for
+#if defined (FAKE_CALL)
+    //ant_stick = 
+#else
     libusb_device **devs;
     ssize_t devcnt = libusb_get_device_list(nullptr, &devs);
     if (devcnt < 0)
-        throw LibusbError("libusb_get_device_list", devcnt);
+        throw LibusbError("libusb_get_device_list", (int)devcnt);
 
-    libusb_device *ant_stick = nullptr; // the one we are looking for
     bool found_it = false;
     int i = 0;
     libusb_device *dev = nullptr;
@@ -882,7 +886,7 @@ libusb_device* FindAntStick()
         }
     }
     libusb_free_device_list(devs, 1);
-
+#endif
     return ant_stick;
 }
 
@@ -1133,7 +1137,7 @@ bool AntStick::MaybeProcessMessage(const Buffer &message)
     for(auto i = m_Channels.begin(); i != m_Channels.end(); ++i) {
         if ((*i)->m_ChannelNumber == channel)
         {
-            (*i)->HandleMessage (&message[0], message.size());
+            (*i)->HandleMessage (&message[0], (int)message.size());
             return true;
         }
     }
@@ -1155,12 +1159,9 @@ void AntStick::Tick()
 
     if (m_LastReadMessage.empty()) return;
 
-    //std::cout << "AntStick::Tick() got a message\n";
-    //DumpData(&m_LastReadMessage[0], m_LastReadMessage.size(), std::cout);
-
     if (! MaybeProcessMessage (m_LastReadMessage))
     {
-#if defined DEBUG_OUTPUT
+#if defined DEBUG_DUMP
         std::cerr << "Unprocessed message:\n";
         DumpData (&m_LastReadMessage[0], m_LastReadMessage.size(), std::cerr);
 #endif
