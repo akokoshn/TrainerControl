@@ -1,6 +1,7 @@
 /**
  *  AntStick -- communicate with an ANT+ USB stick
- *  Copyright (C) 2017 Alex Harsanyi (AlexHarsanyi@gmail.com)
+ *  Copyright (C) 2017 - 2018 Alex Harsanyi (AlexHarsanyi@gmail.com),
+ *                            Alexey Kokoshnikov (alexeikokoshnikov@gmail.com)
  * 
  * This program is free software: you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
@@ -16,14 +17,14 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "stdafx.h"
-#include "AntStick.h"
-#include "Tools.h"
-#include "Mock.h"
 
 #include <iostream>
 #include <algorithm>
 #include <iterator>
 #include <assert.h>
+
+#include "AntStick.h"
+#include "Tools.h"
 
 #include "winsock2.h" // for struct timeval
 
@@ -48,6 +49,8 @@
 
 namespace {
 
+    static const int MaxTries = 50;
+
 enum ChannelType {
     BIDIRECTIONAL_RECEIVE = 0x00,
     BIDIRECTIONAL_TRANSMIT = 0x10,
@@ -62,7 +65,9 @@ enum ChannelType {
 void CheckChannelResponse (
     const Buffer &response, uint8_t channel, uint8_t cmd, uint8_t status)
 {
-    if (response[2] != CHANNEL_RESPONSE
+#if !defined(FAKE_CALL)
+    if (response.size() < 6
+        || response[2] != CHANNEL_RESPONSE
         || response[3] != channel
         || response[4] != cmd
         || response[5] != status)
@@ -77,6 +82,7 @@ void CheckChannelResponse (
         if (! std::uncaught_exception())
             throw std::runtime_error ("CheckChannelResponse -- bad response");
     }
+#endif
 }
 
 void AddMessageChecksum (Buffer &b)
@@ -84,13 +90,6 @@ void AddMessageChecksum (Buffer &b)
     uint8_t c = 0;
     std::for_each (b.begin(), b.end(), [&](uint8_t e) { c ^= e; });
     b.push_back (c);
-}
-
-bool IsGoodChecksum (const Buffer &message)
-{
-    uint8_t c = 0;
-    std::for_each (message.begin(), message.end(), [&](uint8_t e) { c ^= e; });
-    return c == 0;
 }
 
 Buffer MakeMessage (AntMessageId id, uint8_t data)
@@ -238,279 +237,6 @@ const char *ChannelEventAsString(AntChannelEvent e)
     }
     return "unknown channel event";
 }
-
-
-// ................................................... AntMessageReader ....
-
-/** Read ANT messages from an USB device (the ANT stick) */
-class AntMessageReader
-{
-public:
-    AntMessageReader (libusb_device_handle *dh, uint8_t endpoint);
-    ~AntMessageReader();
-
-    void MaybeGetNextMessage(Buffer &message);
-    void GetNextMessage (Buffer &message);
-
-private:
-
-    void GetNextMessage1(Buffer &message);
-
-    static void LIBUSB_CALL Trampoline (libusb_transfer *);
-    void SubmitUsbTransfer();
-    void CompleteUsbTransfer(const libusb_transfer *);
-
-    libusb_device_handle *m_DeviceHandle;
-    uint8_t m_Endpoint;
-    libusb_transfer *m_Transfer;
-
-    /** Hold partial data received from the USB stick.  A single USB read
-     * might not return an entire ANT message. */
-    Buffer m_Buffer;
-    unsigned m_Mark;            // buffer position up to where data is available
-    bool m_Active;              // is there a transfer active?
-};
-
-
-AntMessageReader::AntMessageReader (libusb_device_handle *dh, uint8_t endpoint)
-    : m_DeviceHandle (dh),
-      m_Endpoint (endpoint),
-      m_Transfer (nullptr),
-      m_Mark(0),
-      m_Active (false)
-{
-    m_Buffer.reserve (1024);
-    m_Transfer = libusb_alloc_transfer (0);
-}
-
-AntMessageReader::~AntMessageReader()
-{
-    if (m_Active)
-        libusb_cancel_transfer (m_Transfer);
-    while (m_Active) {
-        libusb_handle_events (nullptr);
-    }
-    libusb_free_transfer (m_Transfer);
-}
-
-/** Fill `message' with the next available message.  If no message is received
- * within a small amount of time, an empty buffer is returned.  If a message
- * is returned, it is a valid message (good header, length and checksum).
- */
-void AntMessageReader::MaybeGetNextMessage (Buffer &message)
-{
-    message.clear();
-
-    if (m_Active) {
-        // Finish the transfer, wait 2 seconds for it
-        struct timeval tv;
-        tv.tv_sec = 2; tv.tv_usec = 0;
-        int r = libusb_handle_events_timeout_completed (nullptr, &tv, nullptr);
-        if (r < 0)
-            throw LibusbError ("libusb_handle_events", r);
-    }
-
-    if (m_Active)
-        return;
-
-    GetNextMessage1(message);
-}
-
-
-/** Fill `message' with the next available message.  If a message is returned,
- * it is a valid message (good header, length and checksum).  If no message is
- * received within a small amount of time, a timeout exception will be
- * thrown.
- */
-void AntMessageReader::GetNextMessage(Buffer &message)
-{
-    MaybeGetNextMessage(message);
-    if (message.empty())
-        throw std::runtime_error ("AntMessageReader -- timed out");
-}
-
-void AntMessageReader::GetNextMessage1(Buffer &message)
-{
-    // Cannot operate on the buffer while a transfer is active
-    assert (! m_Active);
-
-    // Look for the sync byte which starts a message
-    while ((! m_Buffer.empty()) && m_Buffer[0] != SYNC_BYTE) {
-        m_Buffer.erase(m_Buffer.begin());
-        m_Mark--;
-    }
-
-    // An ANT message has the following sequence: SYNC, LEN, MSGID, DATA,
-    // CHECKSUM.  An empty message has at least 4 bytes in it.
-    if (m_Mark < 4) {
-        SubmitUsbTransfer();
-        return MaybeGetNextMessage(message);
-    }
-
-    // LEN is the length of the data, actual message length is LEN + 4.
-    unsigned len = m_Buffer[1] + 4;
-
-    if (m_Mark < len) {
-        SubmitUsbTransfer();
-        return MaybeGetNextMessage(message);
-    }
-
-    std::copy(m_Buffer.begin(), m_Buffer.begin() + len, std::back_inserter(message));
-    // Remove the message from the buffer.
-    m_Buffer.erase (m_Buffer.begin(), m_Buffer.begin() + len);
-    m_Mark -= len;
-
-    if (! IsGoodChecksum (message))
-        throw std::runtime_error ("AntMessageReader -- bad checksum");
-}
-
-void LIBUSB_CALL AntMessageReader::Trampoline (libusb_transfer *t)
-{
-    AntMessageReader *a = reinterpret_cast<AntMessageReader*>(t->user_data);
-    a->CompleteUsbTransfer (t);
-}
-
-void AntMessageReader::SubmitUsbTransfer()
-{
-    assert (! m_Active);
-
-    const int read_size = 128;
-    const int timeout = 10000;
-
-    // Make sure we have enough space in the buffer.
-    m_Buffer.resize (m_Mark + read_size);
-
-    libusb_fill_bulk_transfer (
-        m_Transfer, m_DeviceHandle, m_Endpoint,
-        &m_Buffer[m_Mark], read_size, Trampoline, this, timeout);
-
-    int r = libusb_submit_transfer (m_Transfer);
-    if (r < 0)
-        throw LibusbError ("libusb_submit_transfer", r);
-
-    m_Active = true;
-}
-
-void AntMessageReader::CompleteUsbTransfer(const libusb_transfer *t)
-{
-    assert (t == m_Transfer);
-
-    m_Active = false;
-
-    bool ok = (m_Transfer->status == LIBUSB_TRANSFER_COMPLETED);
-
-    m_Mark += ok ? m_Transfer->actual_length : 0;
-    m_Buffer.erase (m_Buffer.begin() + m_Mark, m_Buffer.end());
-}
-
-
-// ................................................... AntMessageWriter ....
-
-/** Write ANT messages to a USB device (the ANT stick). */
-class AntMessageWriter
-{
-public:
-    AntMessageWriter (libusb_device_handle *dh, uint8_t endpoint);
-    ~AntMessageWriter();
-
-    void WriteMessage (const Buffer &message);
-
-private:
-
-    static void LIBUSB_CALL Trampoline (libusb_transfer *);
-    void SubmitUsbTransfer();
-    void CompleteUsbTransfer(const libusb_transfer *);
-
-    libusb_device_handle *m_DeviceHandle;
-    uint8_t m_Endpoint;
-    libusb_transfer *m_Transfer;
-
-    Buffer m_Buffer;
-    bool m_Active;                      // is there a transfer active?
-};
-
-
-AntMessageWriter::AntMessageWriter (libusb_device_handle *dh, uint8_t endpoint)
-    : m_DeviceHandle (dh), m_Endpoint (endpoint), m_Transfer (nullptr), m_Active (false)
-{
-    m_Transfer = libusb_alloc_transfer (0);
-}
-
-AntMessageWriter::~AntMessageWriter()
-{
-    if (m_Active)
-        libusb_cancel_transfer (m_Transfer);
-    while (m_Active) {
-        libusb_handle_events (nullptr);
-    }
-    libusb_free_transfer (m_Transfer);
-}
-
-/** Write `message' to the USB device.  This is presumably an ANT message, but
- * we don't check.  When this function returns, the message has been written
- * (there is no buffering on the application side). An exception is thrown if
- * there is an error or a timeout.
- */
-void AntMessageWriter::WriteMessage (const Buffer &message)
-{
-    assert (! m_Active);
-    m_Buffer = message;
-    m_Active = false;
-    SubmitUsbTransfer();
-
-    // Finish the transfer, wait 2 seconds for it
-    struct timeval tv;
-    tv.tv_sec = 2; tv.tv_usec = 0;
-    int r = libusb_handle_events_timeout_completed (nullptr, &tv, nullptr);
-    if (r < 0)
-        throw LibusbError ("libusb_handle_events", r);
-
-    if (! m_Active && m_Transfer->status != LIBUSB_TRANSFER_COMPLETED)
-        throw LibusbError ("AntMessageWriter", m_Transfer->status);
-
-    if (m_Active) {
-        libusb_cancel_transfer (m_Transfer);
-        struct timeval tv;
-        tv.tv_sec = 0; tv.tv_usec = 10 * 1000;
-        int r = libusb_handle_events_timeout_completed (nullptr, &tv, nullptr);
-        if (r < 0)
-            throw LibusbError ("libusb_handle_events", r);
-
-        m_Active = false;               // ready or not!
-
-        throw std::runtime_error ("AntMessageWriter -- timed out");
-    }
-}
-
-void LIBUSB_CALL AntMessageWriter::Trampoline (libusb_transfer *t)
-{
-    AntMessageWriter *a = reinterpret_cast<AntMessageWriter*>(t->user_data);
-    a->CompleteUsbTransfer (t);
-}
-
-void AntMessageWriter::SubmitUsbTransfer()
-{
-    const int timeout = 2000;
-
-    libusb_fill_bulk_transfer (
-        m_Transfer, m_DeviceHandle, m_Endpoint,
-        &m_Buffer[0], (int)m_Buffer.size(), Trampoline, this, timeout);
-
-    int r = libusb_submit_transfer (m_Transfer);
-    if (r < 0)
-        throw LibusbError ("libusb_submit_transfer", r);
-
-    m_Active = true;
-}
-
-void AntMessageWriter::CompleteUsbTransfer(const libusb_transfer *t)
-{
-    assert (t == m_Transfer);
-    m_Active = false;
-}
-
-
-// ......................................................... AntChannel ....
 
 AntChannel::AntChannel (AntStick *stick,
                         AntChannel::Id channel_id,
@@ -852,9 +578,7 @@ int num_ant_stick_devid = sizeof(ant_stick_devid) / sizeof(ant_stick_devid[0]);
 libusb_device* FindAntStick()
 {
     libusb_device *ant_stick = nullptr; // the one we are looking for
-#if defined (FAKE_CALL)
-    //ant_stick = 
-#else
+#if !defined (FAKE_CALL)
     libusb_device **devs;
     ssize_t devcnt = libusb_get_device_list(nullptr, &devs);
     if (devcnt < 0)
@@ -977,6 +701,7 @@ AntStick::AntStick()
 {
     try {
         m_Device = FindAntStick();
+#if !defined (FAKE_CALL)
         if (! m_Device)
         {
             throw AntStickNotFound();
@@ -987,6 +712,7 @@ AntStick::AntStick()
             m_DeviceHandle = nullptr;
             throw LibusbError("libusb_open", r);
         }
+
         ConfigureAntStick(m_DeviceHandle);
 
         uint8_t read_endpoint, write_endpoint;
@@ -1001,7 +727,13 @@ AntStick::AntStick()
         auto wt = std::unique_ptr<AntMessageWriter>(
             new AntMessageWriter (m_DeviceHandle, write_endpoint));
         m_Writer = std::move (wt);
-
+#else
+        uint8_t read_endpoint = 0, write_endpoint = 0;
+        m_Reader = std::unique_ptr<AntMessageReader>(
+            new AntMessageReader(read_endpoint));
+        m_Writer = std::unique_ptr<AntMessageWriter>(
+            new AntMessageWriter(write_endpoint));
+#endif
         Reset();
         QueryInfo();
 
@@ -1055,36 +787,55 @@ const Buffer& AntStick::ReadMessage()
 void AntStick::Reset()
 {
     WriteMessage (MakeMessage (RESET_SYSTEM, 0));
-    int ntries = 50;
+#if !defined(FAKE_CALL)
+    int ntries = MaxTries;
     while (ntries-- > 0) {
         Buffer message = ReadMessage();
+        if (message.size() < 3)
+            throw std::runtime_error("Readed wrong mwssage");
         if(message[2] == STARTUP_MESSAGE)
             break;
     }
+#else
+    Buffer message = ReadMessage();
+#endif
 }
 
 void AntStick::QueryInfo()
 {
     WriteMessage (MakeMessage (REQUEST_MESSAGE, 0, RESPONSE_SERIAL_NUMBER));
     Buffer msg_serial = ReadMessage();
-    if (msg_serial[2] != RESPONSE_SERIAL_NUMBER)
+#if !defined(FAKE_CALL)
+    if (msg_serial.size() < 7 || msg_serial[2] != RESPONSE_SERIAL_NUMBER)
         throw std::runtime_error ("QueryInfo: unexpected message");
     m_SerialNumber = msg_serial[3] | (msg_serial[4] << 8) | (msg_serial[5] << 16) | (msg_serial[6] << 24);
+#else
+    m_SerialNumber = 0xfffffffe;
+#endif
 
     WriteMessage (MakeMessage (REQUEST_MESSAGE, 0, RESPONSE_VERSION));
     Buffer msg_version = ReadMessage();
-    if (msg_version[2] != RESPONSE_VERSION)
+#if !defined(FAKE_CALL)
+    if (msg_version.size() < 4 || msg_version[2] != RESPONSE_VERSION)
         throw std::runtime_error ("QueryInfo: unexpected message");
     const char *version = reinterpret_cast<const char *>(&msg_version[3]);
     m_Version = version;
+#else
+    m_Version = "0.0";
+#endif
 
     WriteMessage (MakeMessage (REQUEST_MESSAGE, 0, RESPONSE_CAPABILITIES));
     Buffer msg_caps = ReadMessage();
-    if (msg_caps[2] != RESPONSE_CAPABILITIES)
+#if !defined(FAKE_CALL)
+    if (msg_caps.size() < 5 || msg_caps[2] != RESPONSE_CAPABILITIES)
         throw std::runtime_error ("QueryInfo: unexpected message");
 
     m_MaxChannels = msg_caps[3];
     m_MaxNetworks = msg_caps[4];
+#else
+    m_MaxChannels = 4; //for 2 sessions
+    m_MaxNetworks = 1;
+#endif
 }
 
 void AntStick::RegisterChannel (AntChannel *c)
@@ -1102,13 +853,9 @@ int AntStick::NextChannelId() const
 {
     int id = 0;
     for (int i = 0; i < m_MaxChannels; ++i) {
-        for (auto j = begin(m_Channels); j != end(m_Channels); j++) {
-            if ((*j)->m_ChannelNumber == i)
-                goto next;
-        }
-        return i;
-    next:
-        1 == 2;
+        auto channel_it = std::find_if(m_Channels.begin(), m_Channels.end(), [i](const AntChannel * item) { return item->m_ChannelNumber == i;  });
+        if (channel_it == m_Channels.end())
+            return i;
     }
     return -1;
 }
@@ -1129,6 +876,8 @@ void AntStick::SetNetworkKey (uint8_t key[8])
 
 bool AntStick::MaybeProcessMessage(const Buffer &message)
 {
+    if (message.size() < 4)
+        throw std::runtime_error("Process wrong mwssage");
     auto channel = message[3];
 
     if (message[2] == BURST_TRANSFER_DATA)

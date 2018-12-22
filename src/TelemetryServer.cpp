@@ -1,6 +1,7 @@
 /**
  *  TelemetryServer -- manage a bike trainer
- *  Copyright (C) 2017 Alex Harsanyi (AlexHarsanyi@gmail.com)
+ *  Copyright (C) 2017 - 2018 Alex Harsanyi (AlexHarsanyi@gmail.com),
+ *                            Alexey Kokoshnikov (alexeikokoshnikov@gmail.com)
  * 
  * This program is free software: you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
@@ -167,7 +168,7 @@ void TelemetryServer::ProcessClients(const Telemetry &t)
     for (unsigned i = 1; i < status.size(); ++i) {
         if (status[i] & SK_WRITE) {
             try {
-                if (!SendMessage(m_Clients[i], message.c_str(), message.length())) {
+                if (!SendMessage(m_Clients[i], message.c_str(), (int)message.length())) {
                     closed_sockets.push_back(m_Clients[i]);
                 }
             }

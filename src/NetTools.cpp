@@ -1,6 +1,7 @@
 /**
  *  NetTools -- convenient wrappers for socket functions
- *  Copyright (C) 2017 Alex Harsanyi (AlexHarsanyi@gmail.com)
+ *  Copyright (C) 2017 - 2018 Alex Harsanyi (AlexHarsanyi@gmail.com)
+ *                            Alexey Kokoshnikov (alexeikokoshnikov@gmail.com)
  * 
  * This program is free software: you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
@@ -143,7 +144,7 @@ std::vector<uint8_t> get_socket_status(const std::vector<SOCKET> &sockets, uint6
     to.tv_sec = static_cast<unsigned long>(seconds);
     to.tv_usec = static_cast<unsigned long>(useconds);
 
-    int r = select (sockets.size(), &read_fds, &write_fds, &except_fds, &to);
+    int r = (int)select ((int)sockets.size(), &read_fds, &write_fds, &except_fds, &to);
 
     if (r == SOCKET_ERROR) {
         throw Win32Error ("select()", WSAGetLastError());
