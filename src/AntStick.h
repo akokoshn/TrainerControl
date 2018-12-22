@@ -375,9 +375,6 @@ private:
     std::unique_ptr<AntMessageWriter> m_Writer;
 
     std::vector<AntChannel*> m_Channels;
-#if defined (FAKE_CALL)
-    MockObject m_MockObj;
-#endif
 };
 
 /** Read ANT messages from an USB device (the ANT stick) */
