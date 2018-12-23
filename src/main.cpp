@@ -24,7 +24,6 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
-#include <iostream>
 
 void ProcessChannels(AntStick &s)
 {
