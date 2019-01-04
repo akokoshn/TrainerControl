@@ -60,7 +60,7 @@ void AntMessageWriter::WriteMessage(const Buffer &message)
         throw LibusbError("libusb_handle_events", r);
 #else
     CompleteUsbTransfer(m_Transfer);
-    m_Transfer->status == LIBUSB_TRANSFER_COMPLETED;
+    m_Transfer->status = LIBUSB_TRANSFER_COMPLETED;
 #endif
     if (!m_Active && m_Transfer->status != LIBUSB_TRANSFER_COMPLETED)
         throw LibusbError("AntMessageWriter", m_Transfer->status);

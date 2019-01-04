@@ -19,7 +19,7 @@
 #include <iostream>
 #include "FitnessEquipmentControl.h"
 #include "HeartRateMonitor.h"
-#include "NetTools.h"
+//#include "NetTools.h"
 
 // Hold information about a "current" reading from the trainer.  We quote
 // "current" because data comes from different sources and might not be
@@ -47,10 +47,8 @@ private:
 
     void CheckSensorHealth();
     void CollectTelemetry (Telemetry &out);
-    void ProcessClients (const Telemetry &t);
     void ProcessMessage(const std::string &message);
     
-    std::vector<SOCKET> m_Clients;
     AntStick *m_AntStick;
     HeartRateMonitor *m_Hrm;
     FitnessEquipmentControl *m_Fec;
