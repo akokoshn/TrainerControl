@@ -36,7 +36,8 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
 TelemetryServer::TelemetryServer (AntStick *stick, int port)
     : m_AntStick (stick),
       m_Hrm (nullptr),
-      m_Fec (nullptr)
+      m_Fec (nullptr),
+      m_current_telemetry()
 {
     try {
         LOG_MSG("Started server");
@@ -57,20 +58,10 @@ TelemetryServer::~TelemetryServer()
 
 void TelemetryServer::Tick()
 {
-#if 1
     std::lock_guard<std::mutex> Guard(guard);
     TickAntStick (m_AntStick);
     CheckSensorHealth();
-#endif
-    Telemetry t;
-#if 1
-    CollectTelemetry (t);
-#else
-    t.cad = 78;
-    t.hr = 146;
-    t.spd = 4.2;
-    t.pwr = 214;
-#endif
+    CollectTelemetry (m_current_telemetry);
 }
 
 bool TelemetryServer::WaitConnection()
@@ -129,4 +120,9 @@ void TelemetryServer::ProcessMessage(const std::string &message)
     if(command == "SET-SLOPE" && m_Fec) {
         m_Fec->SetSlope(param);
     }
+}
+
+Telemetry TelemetryServer::GetTelemetry()
+{
+    return m_current_telemetry;
 }

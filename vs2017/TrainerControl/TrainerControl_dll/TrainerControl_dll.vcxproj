@@ -160,6 +160,7 @@
     <ClInclude Include="..\..\..\src\HeartRateMonitor.h" />
     <ClInclude Include="..\..\..\src\Mock.h" />
     <ClInclude Include="..\..\..\src\NetTools.h" />
+    <ClInclude Include="..\..\..\src\structures.h" />
     <ClInclude Include="..\..\..\src\TelemetryServer.h" />
     <ClInclude Include="..\..\..\src\Tools.h" />
     <ClInclude Include="..\..\..\src\TrainerControl.h" />

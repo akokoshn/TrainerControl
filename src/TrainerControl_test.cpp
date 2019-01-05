@@ -37,6 +37,8 @@ int main(int argc, const char** argv)
     printf("Run(session = 0x%x, thread = 0x%x) return %d\n", ant_handle, &server_thread, res);
     CHECK_RES(res);
     std::this_thread::sleep_for(std::chrono::milliseconds(5000));// wait 5 sec
+    Telemetry t = GetTelemetry(ant_session);
+    printf("GetTelemetry(session = 0x%x): HR = %lf, CAD = %lf, PWR = %lf, SPEED = %lf\n", ant_handle, t.hr, t.cad, t.pwr, t.spd);
     res = Stop(ant_session, server_thread);
     printf("Stop(session = 0x%x, thread = 0x%x) return %d\n", ant_handle, &server_thread, res);
     CHECK_RES(res);

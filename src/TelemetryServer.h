@@ -18,22 +18,9 @@
 #pragma once
 #include <iostream>
 #include <mutex>
+#include "structures.h"
 #include "FitnessEquipmentControl.h"
 #include "HeartRateMonitor.h"
-//#include "NetTools.h"
-
-// Hold information about a "current" reading from the trainer.  We quote
-// "current" because data comes from different sources and might not be
-// completely in sync.
-struct Telemetry
-{
-    Telemetry()
-        : hr(-1), cad(-1), spd(-1), pwr(-1) {}
-    double hr;
-    double cad;
-    double spd;
-    double pwr;
-};
 
 std::ostream& operator<<(std::ostream &out, const Telemetry &t);
 
@@ -44,6 +31,7 @@ public:
 
     void Tick();
     bool WaitConnection();
+    Telemetry GetTelemetry();
     
 private:
 
@@ -54,6 +42,7 @@ private:
     AntStick *m_AntStick;
     HeartRateMonitor *m_Hrm;
     FitnessEquipmentControl *m_Fec;
+    Telemetry m_current_telemetry;
 
     std::mutex guard;
 };

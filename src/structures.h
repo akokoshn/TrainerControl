@@ -17,20 +17,22 @@
  */
 #pragma once
 
-#include <thread>
-#include "structures.h"
+struct AntSession
+{
+    void * m_AntStick;
+    void * m_TelemtryServer;
+    bool m_bIsRun;
+};
 
-#ifdef TRAINERCONTROLDLL_EXPORTS
-#define TRAINERCONTROLDLL_API __declspec(dllexport)
-#else
-#define TRAINERCONTROLDLL_API __declspec(dllimport)
-#endif
-
-extern "C" TRAINERCONTROLDLL_API int InitAntService(void ** ant_instanance);
-extern "C" TRAINERCONTROLDLL_API int CloseAntService();
-extern "C" TRAINERCONTROLDLL_API AntSession InitSession(void * ant_instanance);
-extern "C" TRAINERCONTROLDLL_API int CloseSession(AntSession & session);
-/*create separate thread assign with session*/
-extern "C" TRAINERCONTROLDLL_API int Run(AntSession & session, std::thread & thread);
-extern "C" TRAINERCONTROLDLL_API int Stop(AntSession & session, std::thread & thread);
-extern "C" TRAINERCONTROLDLL_API Telemetry GetTelemetry(AntSession & session);
+// Hold information about a "current" reading from the trainer.  We quote
+// "current" because data comes from different sources and might not be
+// completely in sync.
+struct Telemetry
+{
+    Telemetry()
+        : hr(-1), cad(-1), spd(-1), pwr(-1) {}
+    double hr;
+    double cad;
+    double spd;
+    double pwr;
+};
