@@ -58,6 +58,7 @@ TelemetryServer::~TelemetryServer()
 void TelemetryServer::Tick()
 {
 #if 1
+    std::lock_guard<std::mutex> Guard(guard);
     TickAntStick (m_AntStick);
     CheckSensorHealth();
 #endif
@@ -70,6 +71,21 @@ void TelemetryServer::Tick()
     t.spd = 4.2;
     t.pwr = 214;
 #endif
+}
+
+bool TelemetryServer::WaitConnection()
+{
+    int num_try = 0;
+    while (num_try < 50)// wait for 5 sec
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));// wait 0.1 sec
+        std::lock_guard<std::mutex> Guard(guard);
+        if ((m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_OPEN) &&
+            (m_Fec && m_Fec->ChannelState() == AntChannel::CH_OPEN))
+            return true;
+        num_try++;
+    }
+    return false;
 }
 
 void TelemetryServer::CheckSensorHealth()

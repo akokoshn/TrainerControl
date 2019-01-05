@@ -17,6 +17,7 @@
  */
 #pragma once
 #include <iostream>
+#include <mutex>
 #include "FitnessEquipmentControl.h"
 #include "HeartRateMonitor.h"
 //#include "NetTools.h"
@@ -42,14 +43,17 @@ public:
     ~TelemetryServer();
 
     void Tick();
+    bool WaitConnection();
     
 private:
 
     void CheckSensorHealth();
     void CollectTelemetry (Telemetry &out);
     void ProcessMessage(const std::string &message);
-    
+
     AntStick *m_AntStick;
     HeartRateMonitor *m_Hrm;
     FitnessEquipmentControl *m_Fec;
+
+    std::mutex guard;
 };

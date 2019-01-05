@@ -85,11 +85,11 @@ void HeartRateMonitor::OnStateChanged (
 {
     if (new_state == AntChannel::CH_OPEN) {
         LOG_MSG("Connected to HRM with serial "); LOG_D(ChannelId().DeviceNumber);
-    } else {
+     } else {
         m_LastMeasurementTime = 0;
         m_MeasurementTime = 0;
         m_HeartBeats = 0;
         m_InstantHeartRate = 0;
         m_InstantHeartRateTimestamp = 0;
-    }
+     }
 }
