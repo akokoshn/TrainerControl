@@ -17,36 +17,55 @@
  */
 #include <stdio.h>
 #include <chrono>
-#include "TrainerControl.h"
+#include "test_suites.h"
 
 #define CHECK_RES(res) if (res != 0) return res
 
+
 int main(int argc, const char** argv)
 {
-    void * ant_handle = nullptr;
-    int res = InitAntService(&ant_handle);
-    printf("InitAntService(0x%x) return %d\n", ant_handle, res);
-    CHECK_RES(res);
-    AntSession ant_session = InitSession(ant_handle);
-    printf("InitSession(0x%x):\n session.m_AntStick = 0x%x\n session.m_TelemtryServer = 0x%x\n session.m_bIsRun = %d\n",
-        ant_handle, ant_session.m_AntStick,
-        ant_session.m_TelemtryServer,
-        ant_session.m_bIsRun);
-    std::thread server_thread;
-    res = Run(ant_session, server_thread);
-    printf("Run(session = 0x%x, thread = 0x%x) return %d\n", ant_handle, &server_thread, res);
-    CHECK_RES(res);
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));// wait 5 sec
-    Telemetry t = GetTelemetry(ant_session);
-    printf("GetTelemetry(session = 0x%x): HR = %lf, CAD = %lf, PWR = %lf, SPEED = %lf\n", ant_handle, t.hr, t.cad, t.pwr, t.spd);
-    res = Stop(ant_session, server_thread);
-    printf("Stop(session = 0x%x, thread = 0x%x) return %d\n", ant_handle, &server_thread, res);
-    CHECK_RES(res);
-    res = CloseSession(ant_session);
-    printf("CloseSession(session = 0x%x) return %d\n", ant_handle, res);
-    CHECK_RES(res);
-    res = CloseAntService();
-    printf("CloseAntService() return %d\n", res);
-    CHECK_RES(res);
-    return 0;
+    int res = 0;
+    ServiceInit test_init;
+    if (false == test_init.run_case())
+    {
+        printf("test_init FAILED\n");
+        res = -1;
+    }
+    ServiceClose test_close;
+    if (false == test_close.run_case())
+    {
+        printf("test_close FAILED\n");
+        res = -1;
+    }
+    SessionInit test_session_init;
+    if (false == test_session_init.run_case())
+    {
+        printf("test_session_init FAILED\n");
+        res = -1;
+    }
+    SessionClose test_session_close;
+    if (false == test_session_close.run_case())
+    {
+        printf("test_session_close FAILED\n");
+        res = -1;
+    }
+    SessionRun test_session_run;
+    if (false == test_session_run.run_case())
+    {
+        printf("test_session_run FAILED\n");
+        res = -1;
+    }
+    SessionStop test_session_stop;
+    if (false == test_session_stop.run_case())
+    {
+        printf("test_session_stop FAILED\n");
+        res = -1;
+    }
+    ServiceGetTelemetry test_get_telemetry;
+    if (false == test_get_telemetry.run_case())
+    {
+        printf("test_get_telemetry FAILED\n");
+        res = -1;
+    }
+    return res;
 }
