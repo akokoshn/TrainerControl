@@ -761,11 +761,15 @@ AntStick::~AntStick()
 
 void AntStick::WriteMessage(const Buffer &b)
 {
+    LOG_MSG("WriteMessage:");
+    for (auto c : b) LOG_MSG(" %x ", c);
+    LOG_MSG("\n");
     m_Writer->WriteMessage (b);
 }
 
 const Buffer& AntStick::ReadMessage()
 {
+    LOG_MSG("ReadMessage\n");
     auto SetAsideMessage = [] (const Buffer &message) -> bool {
         return (message[2] == BROADCAST_DATA
                 || message[2] == BURST_TRANSFER_DATA
