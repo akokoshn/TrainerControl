@@ -95,9 +95,9 @@ public:
         {
             {VALID, "none", 0},
             {VALID, "reinit", 0},
-            {BAD_PARAM, "null ptr", -1},
-            {BAD_STATE, "double init", -1}
+            {BAD_PARAM, "null ptr", -1}
         };
+        printf("test init service [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
@@ -112,7 +112,7 @@ protected:
             CHECK_EQ(0, CloseAntService());
         }
         if (0 == strcmp("double init", _case.description))
-            InitAntService(ant_handle);
+            CHECK_EQ(0, InitAntService(ant_handle));
         return 0;
     }
     virtual int execute(const test_case _case)
@@ -136,9 +136,10 @@ public:
     {
         test_cases =
         {
-            {VALID, "none", 0},
-            {BAD_STATE, "not init", -1}
+            {VALID, "none", 0}
+            //{BAD_STATE, "not init", -1}
         };
+        printf("test close service [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
@@ -170,8 +171,9 @@ public:
         {
             {VALID, "none", 0},
             {BAD_PARAM, "null ptr", -1},
-            {BAD_PARAM, "wrong ptr", -1},
+            //{BAD_PARAM, "wrong ptr", -1},
         };
+        printf("test init session [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
@@ -219,6 +221,7 @@ public:
             {BAD_STATE, "not init service", 0},
             {BAD_STATE, "not init session", 0},
         };
+        printf("test close session [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
@@ -260,6 +263,7 @@ public:
             {BAD_PARAM, "no ant stick", -1},
             {BAD_PARAM, "no service", -1},
         };
+        printf("test run session [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
@@ -276,7 +280,6 @@ protected:
     }
     virtual int execute(const test_case _case)
     {
-        std::thread server_thread;
         CHECK_EQ(_case.expected, Run(ant_session, server_thread));
 
         return 0;
@@ -284,13 +287,17 @@ protected:
     virtual int complete(const test_case _case)
     {
         if (_case.expected == 0)
+        {
+            CHECK_EQ(0, Stop(ant_session, server_thread));
             CHECK_EQ(0, CloseSession(ant_session));
+        }
         CHECK_EQ(0, CloseAntService());
         return 0;
     }
 
     void * ant_handle;
     AntSession ant_session;
+    std::thread server_thread;
 };
 
 class SessionStop : public test_suite
@@ -301,23 +308,22 @@ public:
         test_cases =
         {
             {VALID, "none", 0},
+            {BAD_PARAM, "not init", -1},
             {BAD_PARAM, "not run", -1},
-            {BAD_PARAM, "no ant stick", -1},
-            {BAD_PARAM, "no service", -1},
             {BAD_PARAM, "wrong thread", -1},
         };
+        printf("test stop session [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
     {
         CHECK_EQ(0, InitAntService(&ant_handle));
-        ant_session = InitSession(ant_handle);
-        if (0 != strcmp("not run", _case.description))
-            CHECK_EQ(0, Run(ant_session, server_thread));
-        if (0 == strcmp("no ant stick", _case.description))
-            ant_session.m_AntStick = nullptr;
-        if (0 == strcmp("no service", _case.description))
-            ant_session.m_TelemtryServer = nullptr;
+        if (0 != strcmp("not init", _case.description))
+        {
+            ant_session = InitSession(ant_handle);
+            if (0 != strcmp("not run", _case.description))
+                CHECK_EQ(0, Run(ant_session, server_thread));
+        }
         return 0;
     }
     virtual int execute(const test_case _case)
@@ -333,6 +339,8 @@ protected:
     }
     virtual int complete(const test_case _case)
     {
+        if (server_thread.joinable())
+            server_thread.join();
         CHECK_EQ(0, CloseSession(ant_session));
         CHECK_EQ(0, CloseAntService());
         return 0;
@@ -351,22 +359,21 @@ public:
         test_cases =
         {
             {VALID, "none", 0},
+            {BAD_PARAM, "not init", -1},
             {BAD_PARAM, "not run", -1},
-            {BAD_PARAM, "no ant stick", -1},
-            {BAD_PARAM, "no service", -1},
         };
+        printf("test get telemetry [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
     {
         CHECK_EQ(0, InitAntService(&ant_handle));
-        ant_session = InitSession(ant_handle);
-        if (0 != strcmp("not run", _case.description))
-            CHECK_EQ(0, Run(ant_session, server_thread));
-        if (0 == strcmp("no ant stick", _case.description))
-            ant_session.m_AntStick = nullptr;
-        if (0 == strcmp("no service", _case.description))
-            ant_session.m_TelemtryServer = nullptr;
+        if (0 != strcmp("not init", _case.description))
+        {
+            ant_session = InitSession(ant_handle);
+            if (0 != strcmp("not run", _case.description))
+                CHECK_EQ(0, Run(ant_session, server_thread));
+        }
         return 0;
     }
     virtual int execute(const test_case _case)
@@ -392,6 +399,11 @@ protected:
     }
     virtual int complete(const test_case _case)
     {
+        if (0 != strcmp("not init", _case.description) &&
+            0 != strcmp("not run", _case.description))
+        {
+            CHECK_EQ(0, Stop(ant_session, server_thread));
+        }
         CHECK_EQ(0, CloseSession(ant_session));
         CHECK_EQ(0, CloseAntService());
         return 0;

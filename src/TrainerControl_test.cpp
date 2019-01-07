@@ -21,8 +21,7 @@
 
 #define CHECK_RES(res) if (res != 0) return res
 
-
-int main(int argc, const char** argv)
+int run_unit_tests()
 {
     int res = 0;
     ServiceInit test_init;
@@ -68,4 +67,46 @@ int main(int argc, const char** argv)
         res = -1;
     }
     return res;
+}
+
+int run_service()
+{
+    void * ant_handle;
+    CHECK_RES(InitAntService(&ant_handle));
+    AntSession ant_session = InitSession(ant_handle);
+    std::thread server_thread;
+    CHECK_RES(Run(ant_session, server_thread));
+    while (true)
+    {
+        Telemetry t = GetTelemetry(ant_session);
+        printf("HR = %lf, CAD = %lf, POWER = %lf, SPEED = %lf\n", t.hr, t.cad, t.pwr, t.spd);
+        char key[2];
+        printf("continue? [y/n]\n");
+        scanf_s("%1s", key, (unsigned)_countof(key));
+        if (0 == strcmp(key, "n"))
+            break;
+    }
+    CHECK_RES(Stop(ant_session, server_thread));
+    CHECK_RES(CloseSession(ant_session));
+    CHECK_RES(CloseAntService());
+    return 0;
+}
+
+
+int main(int argc, const char** argv)
+{
+    if (argc == 2 &&
+        0 == strcmp(argv[1], "unit_test"))
+    {
+        if (0 != run_unit_tests())
+            printf("unit tests FAILED\n");
+        else
+            printf("unit tests PASSED\n");
+    }
+    else
+    {
+        printf("use \"TrainerControl unit_test\" for run unit tests\n");
+        run_service();
+    }
+    return 0;
 }
