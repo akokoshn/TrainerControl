@@ -25,6 +25,11 @@ well, but this hasn't been done yet.
 2. Build libusb as static library for required configuration (Release/Debug + Win32/x64): open <workspace>\libusdb\msvc\libusb_2017.sln
 3. Build TrainerControl via <workspace>\TrainerControl\vs2017\TrainerControl.sln
 
+## SetUp environment
+
+To connet with Ant device need to install libusbK driver.
+You can use Zadig (https://zadig.akeo.ie/) application: select your Ant device and libusbK driver.
+
 ## Running the application
 
 To run the application, open a command window and type:
