@@ -33,81 +33,42 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
     return out;
 }
 
-TelemetryServer::TelemetryServer (AntStick *stick, int port)
+TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, FitnessEquipmentControl * fec)
     : m_AntStick (stick),
-      m_Hrm (nullptr),
-      m_Fec (nullptr),
+      m_Hrm (hrm),
+      m_Fec (fec),
       m_current_telemetry()
 {
-    try {
-        LOG_MSG("Started server");
-        m_Hrm = new HeartRateMonitor (m_AntStick);
-        m_Fec = new FitnessEquipmentControl (m_AntStick);
-    }
-    catch (...) {
-        delete m_Hrm;
-        delete m_Fec;
-    }
+    LOG_MSG("Started server");
 }
 
 TelemetryServer::~TelemetryServer()
-{
-    delete m_Hrm;
-    delete m_Fec;
-}
+{}
 
 void TelemetryServer::Tick()
 {
     std::lock_guard<std::mutex> Guard(guard);
-    TickAntStick (m_AntStick);
+    //TickAntStick(m_AntStick);
     CheckSensorHealth();
-    CollectTelemetry (m_current_telemetry);
-}
-
-bool TelemetryServer::WaitConnection()
-{
-    int num_try = 0;
-    while (num_try < 50)// wait for 5 sec
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));// wait 0.1 sec
-        std::lock_guard<std::mutex> Guard(guard);
-        if ((m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_OPEN) &&
-            (m_Fec && m_Fec->ChannelState() == AntChannel::CH_OPEN))
-            return true;
-        num_try++;
-    }
-    return false;
+    CollectTelemetry();
 }
 
 void TelemetryServer::CheckSensorHealth()
 {
-    if (m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_CLOSED) {
-        LOG_MSG("Creating new HRM channel");
-        auto device_number = m_Hrm->ChannelId().DeviceNumber;
-        delete m_Hrm;
-        m_Hrm = nullptr;
-        // Try to connect again, but we now look for the same device, don't
-        // change HRM sensors mid-simulation.
-        m_Hrm = new HeartRateMonitor (m_AntStick, device_number);
-    }
-
-    if (m_Fec && m_Fec->ChannelState() == AntChannel::CH_CLOSED) {
-        auto device_number = m_Fec->ChannelId().DeviceNumber;
-        delete m_Fec;
-        m_Fec = nullptr;
-        m_Fec = new FitnessEquipmentControl (m_AntStick, device_number);
-    }
+    //TODO implement reconnect to device from searching service's pool
 }
 
-void TelemetryServer::CollectTelemetry (Telemetry &out)
+void TelemetryServer::CollectTelemetry ()
 {
+    double hr = 0;
     if (m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_OPEN)
-        out.hr = m_Hrm->InstantHeartRate();
+        hr = m_Hrm->InstantHeartRate();
+    m_current_telemetry.hr = hr ? hr : m_current_telemetry.hr;
     
     if (m_Fec && m_Fec->ChannelState() == AntChannel::CH_OPEN) {
-        out.cad = m_Fec->InstantCadence();
-        out.pwr = m_Fec->InstantPower();
-        out.spd = m_Fec->InstantSpeed();
+        m_current_telemetry.cad = m_Fec->InstantCadence();
+        m_current_telemetry.pwr = m_Fec->InstantPower();
+        m_current_telemetry.spd = m_Fec->InstantSpeed();
     }
 }
 

@@ -28,33 +28,7 @@
  * document available from https://www.thisisant.com
  */
 
-namespace {
-
-// Values taken from the HRM ANT+ Device Profile document
-enum {
-    ANT_DEVICE_TYPE = 0x11,
-    CHANNEL_PERIOD = 8192,
-    CHANNEL_FREQUENCY = 57,
-    SEARCH_TIMEOUT = 30
-};
-
-enum {
-    DP_GENERAL = 0x10,
-    DP_TRAINER_SPECIFIC = 0x19,
-    DP_USER_CONFIG = 0x37,
-    DP_FE_CAPABILITIES = 0x36,
-    DP_BASIC_RESISTANCE = 0x30,
-    DP_TARGET_POWER = 0x31,
-    DP_WIND_RESISTANCE = 0x32,
-    DP_TRACK_RESISTANCE = 0x33
-};
-
-// amount of time in milliseconds before values become stale.
-enum {
-    STALE_TIMEOUT = 5000
-};
-
-};                                      // end anonymous namespace
+using namespace bike;
 
 FitnessEquipmentControl::FitnessEquipmentControl(AntStick *stick, uint32_t device_number)
     : AntChannel(stick,
@@ -103,6 +77,7 @@ FitnessEquipmentControl::FitnessEquipmentControl(AntStick *stick, uint32_t devic
     m_InstantCadence = 0;
     m_TrainerState = STATE_RESERVED;
     m_SimulationState = TS_AT_TARGET_POWER;
+    LOG_MSG("Created instance of Bike Control\n");
 }
 
 double FitnessEquipmentControl::InstantPower() const

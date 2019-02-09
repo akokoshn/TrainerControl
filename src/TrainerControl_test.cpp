@@ -24,6 +24,7 @@
 int run_unit_tests()
 {
     int res = 0;
+#if defined(ENABLE_UNIT_TESTS)
     ServiceInit test_init;
     if (false == test_init.run_case())
     {
@@ -66,28 +67,50 @@ int run_unit_tests()
         printf("test_get_telemetry FAILED\n");
         res = -1;
     }
+#endif// ENABLE_UNIT_TESTS
     return res;
 }
 
 int run_service()
 {
     void * ant_handle;
-    CHECK_RES(InitAntService(&ant_handle));
-    AntSession ant_session = InitSession(ant_handle);
+    int max_channels = 0;
+    CHECK_RES(InitAntService(&ant_handle, max_channels));
+
+    std::thread search_thread;
+    void * search_service;
+    CHECK_RES(RunSearch(ant_handle, &search_service, search_thread));
+
+    void ** hrm_list = new void*[max_channels];
+    memset(hrm_list, 0, max_channels);
+    void ** bike_list = new void*[max_channels];
+    memset(bike_list, 0, max_channels);
+
+    int num_hrm = 0, num_bike = 0;
+    while (num_hrm == 0 /*|| num_bike == 0*/)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        GetHRMList(search_service, hrm_list, num_hrm);
+        GetBikeList(search_service, bike_list, num_bike);
+    }
+
+    AntSession ant_session = InitSession(ant_handle, hrm_list[0], bike_list[0]);
     std::thread server_thread;
     CHECK_RES(Run(ant_session, server_thread));
     while (true)
     {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
         Telemetry t = GetTelemetry(ant_session);
         printf("HR = %lf, CAD = %lf, POWER = %lf, SPEED = %lf\n", t.hr, t.cad, t.pwr, t.spd);
         char key[2];
         printf("continue? [y/n]\n");
-        scanf_s("%1s", key, (unsigned)_countof(key));
+        /*scanf_s("%1s", key, (unsigned)_countof(key));
         if (0 == strcmp(key, "n"))
-            break;
+            break;*/
     }
     CHECK_RES(Stop(ant_session, server_thread));
     CHECK_RES(CloseSession(ant_session));
+    CHECK_RES(StopSearch(&search_service, search_thread));
     CHECK_RES(CloseAntService());
     return 0;
 }

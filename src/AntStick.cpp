@@ -262,6 +262,7 @@ AntChannel::AntChannel (AntStick *stick,
             static_cast<uint8_t>(m_Stick->GetNetwork())));
     Buffer response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, ASSIGN_CHANNEL, 0);
+    LOG_MSG("ASSIGN_CHANNEL: m_ChannelNumber = %d, NetworkKey = %d\n", m_ChannelNumber, static_cast<uint8_t>(m_Stick->GetNetwork()));
 
     m_Stick->WriteMessage(
         MakeMessage(SET_CHANNEL_ID, m_ChannelNumber,
@@ -273,13 +274,16 @@ AntChannel::AntChannel (AntStick *stick,
                     static_cast<uint8_t>((m_ChannelId.DeviceNumber >> 12) & 0xF0)));
     response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, SET_CHANNEL_ID, 0);
+    LOG_MSG("SET_CHANNEL_ID: m_ChannelNumber = %d, m_ChannelId.DeviceNumber = %d, m_ChannelId.DeviceType = %d\n", m_ChannelNumber, m_ChannelId.DeviceNumber, m_ChannelId.DeviceType);
 
     Configure(period, timeout, frequency);
+    LOG_MSG("CONFIGURE_CHANNEL: period = %d, timeout = %d, frequency = %d\n", period, timeout, frequency);
 
     m_Stick->WriteMessage (
         MakeMessage (OPEN_CHANNEL, m_ChannelNumber));
     response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, OPEN_CHANNEL, 0);
+    LOG_MSG("OPEN_CHANNEL: m_ChannelNumber = %d\n", m_ChannelNumber);
 
     m_State = CH_SEARCHING;
     m_Stick->RegisterChannel (this);
@@ -372,6 +376,7 @@ void AntChannel::Configure (unsigned period, uint8_t timeout, uint8_t frequency)
  */
 void AntChannel::HandleMessage(const uint8_t *data, int size)
 {
+    LOG_MSG("HandleMessage: m_ChannelNumber = %d, type = %d\n", m_ChannelNumber, data[2]);
     if (m_State == CH_CLOSED) {
         // We should not receive messages if we are closed, maybe we should
         // throw?
@@ -387,11 +392,12 @@ void AntChannel::HandleMessage(const uint8_t *data, int size)
         OnChannelResponseMessage (data, size);
         break;
     case BROADCAST_DATA:
-        if (m_ChannelId.DeviceNumber == 0 && ! m_IdReqestOutstanding)
+        if (m_State != CH_OPEN && ! m_IdReqestOutstanding)
         {
             // We received a broadcast message on this channel and we don't
             // have a master serial number, find out who is sending us
             // broadcast data
+            LOG_MSG("REQUEST_MESSAGE: SET_CHANNEL_ID for m_ChannelNumber = %d\n", m_ChannelNumber);
             m_Stick->WriteMessage (
                 MakeMessage (REQUEST_MESSAGE, m_ChannelNumber, SET_CHANNEL_ID));
             m_IdReqestOutstanding = true;
@@ -424,6 +430,7 @@ void AntChannel::MaybeSendAckData()
  */
 void AntChannel::OnChannelResponseMessage (const uint8_t *data, int size)
 {
+    LOG_MSG("OnChannelResponseMessage\n");
     assert(data[2] == CHANNEL_RESPONSE);
 
     auto msg_id = data[4];
@@ -484,6 +491,7 @@ void AntChannel::OnChannelResponseMessage (const uint8_t *data, int size)
  */
 void AntChannel::OnChannelIdMessage (const uint8_t *data, int size)
 {
+    LOG_MSG("OnChannelIdMessage\n");
     assert(data[2] == RESPONSE_CHANNEL_ID);
 
     // we asked for this when we received the first broadcast message on
@@ -517,6 +525,7 @@ void AntChannel::OnChannelIdMessage (const uint8_t *data, int size)
     // NOTE: fist channel id responses might not contain a message ID.
     if (m_ChannelId.DeviceNumber != 0) {
         ChangeState(CH_OPEN);
+        wasChannelOpen.notify_all();
 #if defined DEBUG_OUTPUT
         std::cerr << "Got a device number: " << m_ChannelId.DeviceNumber << "\n";
 #endif
@@ -876,6 +885,7 @@ void AntStick::SetNetworkKey (uint8_t key[8])
     Buffer response = ReadMessage();
     CheckChannelResponse (response, network, SET_NETWORK_KEY, 0);
     m_Network = network;
+    LOG_MSG("SetNetworkKey: %d\n", network);
 }
 
 bool AntStick::MaybeProcessMessage(const Buffer &message)

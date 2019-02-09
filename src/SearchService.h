@@ -1,5 +1,5 @@
 /**
- *  Mock -- various utilities
+ *  TelemetryServer -- manage a bike trainer
  *  Copyright (C) 2018 Alexey Kokoshnikov (alexeikokoshnikov@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -15,8 +15,26 @@
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #pragma once
+#include <iostream>
+#include <mutex>
+#include "structures.h"
+#include "AntStick.h"
 
-//#define FAKE_CALL
-//#define ENABLE_UNIT_TESTS
+class SearchService {
+public:
+    SearchService(AntStick *stick);
+    ~SearchService();
+
+    void Tick();
+    std::vector<AntChannel*> GetActiveDevices();
+
+private:
+
+    void CheckActiveDevices();
+
+    AntStick *m_AntStick;
+    std::vector<AntChannel*> m_pDevices;
+
+    std::mutex guard;
+};

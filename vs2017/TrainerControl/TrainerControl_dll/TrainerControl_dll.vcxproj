@@ -160,6 +160,7 @@
     <ClInclude Include="..\..\..\src\HeartRateMonitor.h" />
     <ClInclude Include="..\..\..\src\Mock.h" />
     <ClInclude Include="..\..\..\src\NetTools.h" />
+    <ClInclude Include="..\..\..\src\SearchService.h" />
     <ClInclude Include="..\..\..\src\structures.h" />
     <ClInclude Include="..\..\..\src\TelemetryServer.h" />
     <ClInclude Include="..\..\..\src\Tools.h" />
@@ -174,6 +175,7 @@
     <ClCompile Include="..\..\..\src\FitnessEquipmentControl.cpp" />
     <ClCompile Include="..\..\..\src\HeartRateMonitor.cpp" />
     <ClCompile Include="..\..\..\src\NetTools.cpp" />
+    <ClCompile Include="..\..\..\src\SearchService.cpp" />
     <ClCompile Include="..\..\..\src\TelemetryServer.cpp" />
     <ClCompile Include="..\..\..\src\Tools.cpp" />
     <ClCompile Include="dllmain.cpp" />

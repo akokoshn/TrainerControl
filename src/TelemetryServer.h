@@ -26,17 +26,16 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t);
 
 class TelemetryServer {
 public:
-    TelemetryServer (AntStick *stick, int port = 7500);
+    TelemetryServer (AntStick *stick, HeartRateMonitor *hrm, FitnessEquipmentControl *fec);
     ~TelemetryServer();
 
     void Tick();
-    bool WaitConnection();
     Telemetry GetTelemetry();
     
 private:
 
     void CheckSensorHealth();
-    void CollectTelemetry (Telemetry &out);
+    void CollectTelemetry ();
     void ProcessMessage(const std::string &message);
 
     AntStick *m_AntStick;

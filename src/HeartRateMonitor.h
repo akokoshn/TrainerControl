@@ -19,6 +19,22 @@
 
 #include "AntStick.h"
 
+namespace hrm {
+
+    // Values taken from the HRM ANT+ Device Profile document
+    enum {
+        ANT_DEVICE_TYPE = 0x78,
+        CHANNEL_PERIOD = 8070,
+        CHANNEL_FREQUENCY = 57,
+        SEARCH_TIMEOUT = 30
+    };
+
+    enum {
+        STALE_TIMEOUT = 5000
+    };
+
+};                                      // end anonymous namespace
+
 /** Receive data from an ANT+ heart rate monitor. 
  *
  * @warning At this time, only the InstantHeartRate() is received and there is

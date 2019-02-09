@@ -27,21 +27,7 @@
  * available from https://www.thisisant.com
  */
 
-namespace {
-
-// Values taken from the HRM ANT+ Device Profile document
-enum {
-    ANT_DEVICE_TYPE = 0x78,
-    CHANNEL_PERIOD = 8070,
-    CHANNEL_FREQUENCY = 57,
-    SEARCH_TIMEOUT = 30
-};
-
-enum {
-    STALE_TIMEOUT = 5000
-};
-
-};                                      // end anonymous namespace
+using namespace hrm;
 
 HeartRateMonitor::HeartRateMonitor (AntStick *stick, uint32_t device_number)
     : AntChannel(
@@ -54,10 +40,12 @@ HeartRateMonitor::HeartRateMonitor (AntStick *stick, uint32_t device_number)
     m_HeartBeats = 0;
     m_InstantHeartRate = 0;
     m_InstantHeartRateTimestamp = 0;
+    LOG_MSG("Created instance of HR Monitor\n");
 }
 
 void HeartRateMonitor::OnMessageReceived(const unsigned char *data, int size)
 {
+    LOG_MSG("OnMessageReceived for HRM\n");
     if (data[2] != BROADCAST_DATA)
         return;
 

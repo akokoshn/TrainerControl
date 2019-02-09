@@ -21,6 +21,8 @@
 #include "Mock.h"
 #include "TrainerControl.h"
 
+#if defined(ENABLE_UNIT_TESTS)
+
 #define CHECK_EQ(val1, val2) if (val1 != val2) { printf("NOT EQUAL\n"); return -1;}
 #define CHECK_NOT_EQ(val1, val2) if (val1 == val2) { printf("EQUAL\n"); return -1;}
 template <typename T>
@@ -189,7 +191,7 @@ protected:
     }
     virtual int execute(const test_case _case)
     {
-        ant_session = InitSession(ant_handle);
+        ant_session = InitSession(ant_handle, 0);
         if (_case.expected == 0)
         {
             CHECK_EQ(false, ant_session.m_bIsRun);
@@ -231,7 +233,7 @@ protected:
             return 0;
         CHECK_EQ(0, InitAntService(&ant_handle));
         if (0 != strcmp("not init session", _case.description))
-            ant_session = InitSession(ant_handle);
+            ant_session = InitSession(ant_handle, 0);
         return 0;
     }
     virtual int execute(const test_case _case)
@@ -269,7 +271,7 @@ protected:
     virtual int prepare(const test_case _case)
     {
         CHECK_EQ(0, InitAntService(&ant_handle));
-        ant_session = InitSession(ant_handle);
+        ant_session = InitSession(ant_handle, 0);
         if (0 == strcmp("alredy run", _case.description))
             ant_session.m_bIsRun = true;
         if (0 == strcmp("no ant stick", _case.description))
@@ -320,7 +322,7 @@ protected:
         CHECK_EQ(0, InitAntService(&ant_handle));
         if (0 != strcmp("not init", _case.description))
         {
-            ant_session = InitSession(ant_handle);
+            ant_session = InitSession(ant_handle, 0);
             if (0 != strcmp("not run", _case.description))
                 CHECK_EQ(0, Run(ant_session, server_thread));
         }
@@ -370,7 +372,7 @@ protected:
         CHECK_EQ(0, InitAntService(&ant_handle));
         if (0 != strcmp("not init", _case.description))
         {
-            ant_session = InitSession(ant_handle);
+            ant_session = InitSession(ant_handle, 0);
             if (0 != strcmp("not run", _case.description))
                 CHECK_EQ(0, Run(ant_session, server_thread));
         }
@@ -413,3 +415,4 @@ protected:
     AntSession ant_session;
     std::thread server_thread;
 };
+#endif//ENABLE_UNIT_TESTS

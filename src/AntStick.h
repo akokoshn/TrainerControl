@@ -21,6 +21,7 @@
 #include <memory>
 #include <queue>
 #include <stdint.h>
+#include <condition_variable>
 #include "Mock.h"
 
 // TODO: move libusb in the C++ file
@@ -210,6 +211,7 @@ public:
     void RequestClose();
     State ChannelState() const { return m_State; }
     Id ChannelId() const { return m_ChannelId; }
+    std::condition_variable wasChannelOpen;
 
 protected:
     /* Derived classes can use these methods. */
