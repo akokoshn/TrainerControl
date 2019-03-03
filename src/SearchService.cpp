@@ -21,9 +21,11 @@
 #include "FitnessEquipmentControl.h"
 #include "Tools.h"
 
-SearchService::SearchService(AntStick *stick) : m_AntStick(stick)
+SearchService::SearchService(AntStick *stick, std::mutex & guard) :
+    m_AntStick(stick),
+    m_guard(guard)
 {
-    std::lock_guard<std::mutex> Guard(guard);
+    std::lock_guard<std::mutex> Guard(m_guard);
     LOG_MSG("Create search service");
     m_pDevices.resize(m_AntStick->GetMaxChannels());
     uint8_t max_num_channels = m_AntStick->GetMaxChannels();
@@ -34,7 +36,7 @@ SearchService::SearchService(AntStick *stick) : m_AntStick(stick)
 }
 SearchService::~SearchService()
 {
-    std::lock_guard<std::mutex> Guard(guard);
+    std::lock_guard<std::mutex> Guard(m_guard);
     LOG_MSG("Destroy search service");
     //TODO add cloasing channels
     for (auto it : m_pDevices)
@@ -44,7 +46,7 @@ SearchService::~SearchService()
 }
 void SearchService::Tick()
 {
-    std::lock_guard<std::mutex> Guard(guard);
+    std::lock_guard<std::mutex> Guard(m_guard);
     TickAntStick(m_AntStick);
     CheckActiveDevices();
 }

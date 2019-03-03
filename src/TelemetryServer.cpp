@@ -33,11 +33,12 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
     return out;
 }
 
-TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, FitnessEquipmentControl * fec)
+TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, FitnessEquipmentControl * fec, std::mutex & guard)
     : m_AntStick (stick),
       m_Hrm (hrm),
       m_Fec (fec),
-      m_current_telemetry()
+      m_current_telemetry(),
+      m_guard(guard)
 {
     LOG_MSG("Started server");
 }
@@ -47,8 +48,7 @@ TelemetryServer::~TelemetryServer()
 
 void TelemetryServer::Tick()
 {
-    std::lock_guard<std::mutex> Guard(guard);
-    //TickAntStick(m_AntStick);
+    std::lock_guard<std::mutex> Guard(m_guard);
     CheckSensorHealth();
     CollectTelemetry();
 }
@@ -79,6 +79,7 @@ void TelemetryServer::ProcessMessage(const std::string &message)
     double param;
     input >> command >> param;
     if(command == "SET-SLOPE" && m_Fec) {
+        std::lock_guard<std::mutex> Guard(m_guard);
         m_Fec->SetSlope(param);
     }
 }

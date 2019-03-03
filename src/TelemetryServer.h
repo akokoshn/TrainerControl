@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t);
 
 class TelemetryServer {
 public:
-    TelemetryServer (AntStick *stick, HeartRateMonitor *hrm, FitnessEquipmentControl *fec);
+    TelemetryServer (AntStick *stick, HeartRateMonitor *hrm, FitnessEquipmentControl *fec, std::mutex & guard);
     ~TelemetryServer();
 
     void Tick();
@@ -43,5 +43,5 @@ private:
     FitnessEquipmentControl *m_Fec;
     Telemetry m_current_telemetry;
 
-    std::mutex guard;
+    std::mutex & m_guard;
 };

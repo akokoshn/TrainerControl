@@ -17,6 +17,8 @@
  */
 #include <stdio.h>
 #include <chrono>
+#include <thread>
+#include <mutex>
 #include "test_suites.h"
 
 #define CHECK_RES(res) if (res != 0) return res
@@ -78,8 +80,9 @@ int run_service()
     CHECK_RES(InitAntService(&ant_handle, max_channels));
 
     std::thread search_thread;
+    std::mutex guard;
     void * search_service;
-    CHECK_RES(RunSearch(ant_handle, &search_service, search_thread));
+    CHECK_RES(RunSearch(ant_handle, &search_service, search_thread, guard));
 
     void ** hrm_list = new void*[max_channels];
     memset(hrm_list, 0, max_channels);
@@ -87,14 +90,14 @@ int run_service()
     memset(bike_list, 0, max_channels);
 
     int num_hrm = 0, num_bike = 0;
-    while (num_hrm == 0 /*|| num_bike == 0*/)
+    while (num_hrm == 0 || num_bike == 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         GetHRMList(search_service, hrm_list, num_hrm);
         GetBikeList(search_service, bike_list, num_bike);
     }
 
-    AntSession ant_session = InitSession(ant_handle, hrm_list[0], bike_list[0]);
+    AntSession ant_session = InitSession(ant_handle, hrm_list[0], bike_list[0], guard);
     std::thread server_thread;
     CHECK_RES(Run(ant_session, server_thread));
     while (true)

@@ -23,7 +23,7 @@
 
 class SearchService {
 public:
-    SearchService(AntStick *stick);
+    SearchService(AntStick *stick, std::mutex & guard);
     ~SearchService();
 
     void Tick();
@@ -36,5 +36,5 @@ private:
     AntStick *m_AntStick;
     std::vector<AntChannel*> m_pDevices;
 
-    std::mutex guard;
+    std::mutex & m_guard;
 };
