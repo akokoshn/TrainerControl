@@ -209,6 +209,7 @@ public:
     virtual ~AntChannel();
 
     void RequestClose();
+    void RequestUnassign();
     State ChannelState() const { return m_State; }
     Id ChannelId() const { return m_ChannelId; }
     std::condition_variable wasChannelOpen;

@@ -292,21 +292,14 @@ AntChannel::AntChannel (AntStick *stick,
 AntChannel::~AntChannel()
 {
     try {
-        // The user has not called RequestClose(), try to close the channel
-        // now, but this might fail.
         if (m_State != CH_CLOSED) {
-            m_Stick->WriteMessage (MakeMessage (CLOSE_CHANNEL, m_ChannelNumber));
-            Buffer response = m_Stick->ReadMessage();
-            CheckChannelResponse (response, m_ChannelNumber, CLOSE_CHANNEL, 0);
-
+            ChangeState(CH_CLOSED);
+            RequestClose();
             // The channel has to respond with an EVENT_CHANNEL_CLOSED channel
             // event, but we cannot process that (it would go through
             // Tick(). We wait at least for the event to be generated.
             Sleep(0);
-
-            m_Stick->WriteMessage (MakeMessage (UNASSIGN_CHANNEL, m_ChannelNumber));
-            response = m_Stick->ReadMessage();
-            CheckChannelResponse (response, m_ChannelNumber, UNASSIGN_CHANNEL, 0);
+            RequestUnassign();
         }
     }
     catch (std::exception &) {
@@ -326,6 +319,14 @@ void AntChannel::RequestClose()
     Buffer response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, CLOSE_CHANNEL, 0);
 }
+
+void AntChannel::RequestUnassign()
+{
+    m_Stick->WriteMessage(MakeMessage(UNASSIGN_CHANNEL, m_ChannelNumber));
+    Buffer response = m_Stick->ReadMessage();
+    CheckChannelResponse(response, m_ChannelNumber, UNASSIGN_CHANNEL, 0);
+}
+
 
 void AntChannel::SendAcknowledgedData(int tag, const Buffer &message)
 {
@@ -448,9 +449,7 @@ void AntChannel::OnChannelResponseMessage (const uint8_t *data, int size)
             // NOTE: a search timeout will close the channel.
             if (m_State != CH_CLOSED) {
                 ChangeState(CH_CLOSED);
-                m_Stick->WriteMessage(MakeMessage(UNASSIGN_CHANNEL, m_ChannelNumber));
-                Buffer response = m_Stick->ReadMessage();
-                CheckChannelResponse(response, m_ChannelNumber, UNASSIGN_CHANNEL, 0);
+                RequestUnassign();
             }
             return;
         }
