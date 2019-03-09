@@ -17,8 +17,6 @@
  */
 #include <stdio.h>
 #include <chrono>
-#include <thread>
-#include <mutex>
 #include "test_suites.h"
 
 #define CHECK_RES(res) if (res != 0) return res

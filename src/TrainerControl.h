@@ -18,6 +18,7 @@
 #pragma once
 
 #include <thread>
+#include <mutex>
 #include "structures.h"
 
 #ifdef TRAINERCONTROLDLL_EXPORTS
