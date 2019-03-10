@@ -17,9 +17,10 @@
  */
 
 #include "SearchService.h"
+#include "Tools.h"
 #include "HeartRateMonitor.h"
 #include "FitnessEquipmentControl.h"
-#include "Tools.h"
+
 
 SearchService::SearchService(AntStick *stick, std::mutex & guard) :
     m_AntStick(stick),
@@ -28,11 +29,6 @@ SearchService::SearchService(AntStick *stick, std::mutex & guard) :
     std::lock_guard<std::mutex> Guard(m_guard);
     LOG_MSG("Create search service");
     m_pDevices.resize(m_AntStick->GetMaxChannels());
-    uint8_t max_num_channels = m_AntStick->GetMaxChannels();
-    for (uint8_t i = 0; i < max_num_channels/2; i++)
-        m_pDevices[i] = new HeartRateMonitor(m_AntStick);
-    for (uint8_t i = 0; i < max_num_channels / 2; i++)
-        m_pDevices[max_num_channels / 2 + i] = new FitnessEquipmentControl(m_AntStick);
 }
 SearchService::~SearchService()
 {
@@ -60,13 +56,13 @@ void SearchService::CheckActiveDevices()
     for (auto & it : m_pDevices)
     {
         if (it && it->ChannelState() == AntChannel::CH_CLOSED) {
-            if (it->ChannelId().DeviceType == hrm::ANT_DEVICE_TYPE)
+            if (it->ChannelId().DeviceType == HRM::ANT_DEVICE_TYPE)
             {
                 LOG_MSG("Re Creating HRM channel");
                 delete it;
                 it = new HeartRateMonitor(m_AntStick);
             }
-            else if (it->ChannelId().DeviceType == bike::ANT_DEVICE_TYPE)
+            else if (it->ChannelId().DeviceType ==  BIKE::ANT_DEVICE_TYPE)
             {
                 LOG_MSG("Re Creating bike channel");
                 delete it;

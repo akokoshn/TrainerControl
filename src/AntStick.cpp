@@ -24,6 +24,8 @@
 #include <assert.h>
 
 #include "AntStick.h"
+#include "HeartRateMonitor.h"
+#include "FitnessEquipmentControl.h"
 #include "Tools.h"
 
 #include "winsock2.h" // for struct timeval
@@ -238,15 +240,7 @@ const char *ChannelEventAsString(AntChannelEvent e)
     return "unknown channel event";
 }
 
-AntChannel::AntChannel (AntStick *stick,
-                        AntChannel::Id channel_id,
-                        unsigned period,
-                        uint8_t timeout,
-                        uint8_t frequency)
-    : m_Stick (stick),
-      m_IdReqestOutstanding (false),
-      m_AckDataRequestOutstanding(false),
-      m_ChannelId(channel_id)
+void AntChannel::InternalInit(AntStick *stick)
 {
     m_ChannelNumber = stick->NextChannelId();
 
@@ -255,38 +249,54 @@ AntChannel::AntChannel (AntStick *stick,
 
     // we hard code the type to BIDIRECTIONAL_RECEIVE, using other channel
     // types would require changes to the handling code anyway.
-    m_Stick->WriteMessage (
-        MakeMessage (
+    m_Stick->WriteMessage(
+        MakeMessage(
             ASSIGN_CHANNEL, m_ChannelNumber,
             static_cast<uint8_t>(BIDIRECTIONAL_RECEIVE),
             static_cast<uint8_t>(m_Stick->GetNetwork())));
     Buffer response = m_Stick->ReadMessage();
-    CheckChannelResponse (response, m_ChannelNumber, ASSIGN_CHANNEL, 0);
+    CheckChannelResponse(response, m_ChannelNumber, ASSIGN_CHANNEL, 0);
     LOG_MSG("ASSIGN_CHANNEL: m_ChannelNumber = %d, NetworkKey = %d\n", m_ChannelNumber, static_cast<uint8_t>(m_Stick->GetNetwork()));
 
     m_Stick->WriteMessage(
         MakeMessage(SET_CHANNEL_ID, m_ChannelNumber,
-                    static_cast<uint8_t>(m_ChannelId.DeviceNumber & 0xFF),
-                    static_cast<uint8_t>((m_ChannelId.DeviceNumber >> 8) & 0xFF),
-                    m_ChannelId.DeviceType,
-                    // High nibble of the transmission_type is the top 4 bits
-                    // of the 20 bit device id.
-                    static_cast<uint8_t>((m_ChannelId.DeviceNumber >> 12) & 0xF0)));
+            static_cast<uint8_t>(m_ChannelId.DeviceNumber & 0xFF),
+            static_cast<uint8_t>((m_ChannelId.DeviceNumber >> 8) & 0xFF),
+            m_ChannelId.DeviceType,
+            // High nibble of the transmission_type is the top 4 bits
+            // of the 20 bit device id.
+            static_cast<uint8_t>((m_ChannelId.DeviceNumber >> 12) & 0xF0)));
     response = m_Stick->ReadMessage();
-    CheckChannelResponse (response, m_ChannelNumber, SET_CHANNEL_ID, 0);
+    CheckChannelResponse(response, m_ChannelNumber, SET_CHANNEL_ID, 0);
     LOG_MSG("SET_CHANNEL_ID: m_ChannelNumber = %d, m_ChannelId.DeviceNumber = %d, m_ChannelId.DeviceType = %d\n", m_ChannelNumber, m_ChannelId.DeviceNumber, m_ChannelId.DeviceType);
 
-    Configure(period, timeout, frequency);
+    Configure();
     LOG_MSG("CONFIGURE_CHANNEL: period = %d, timeout = %d, frequency = %d\n", period, timeout, frequency);
 
-    m_Stick->WriteMessage (
-        MakeMessage (OPEN_CHANNEL, m_ChannelNumber));
+    m_Stick->WriteMessage(
+        MakeMessage(OPEN_CHANNEL, m_ChannelNumber));
     response = m_Stick->ReadMessage();
-    CheckChannelResponse (response, m_ChannelNumber, OPEN_CHANNEL, 0);
+    CheckChannelResponse(response, m_ChannelNumber, OPEN_CHANNEL, 0);
     LOG_MSG("OPEN_CHANNEL: m_ChannelNumber = %d\n", m_ChannelNumber);
 
     m_State = CH_SEARCHING;
-    m_Stick->RegisterChannel (this);
+    m_Stick->RegisterChannel(this);
+}
+
+AntChannel::AntChannel (AntStick *stick,
+                        AntChannel::Id channel_id,
+                        unsigned period,
+                        uint8_t timeout,
+                        uint8_t frequency)
+    : m_Stick (stick),
+      m_IdReqestOutstanding (false),
+      m_AckDataRequestOutstanding(false),
+      m_ChannelId(channel_id),
+      m_period(period),
+      m_timeout(timeout),
+      m_frequency(frequency)
+{
+    InternalInit(stick);
 }
 
 AntChannel::~AntChannel()
@@ -353,20 +363,20 @@ void AntChannel::RequestDataPage(uint8_t page_id, int transmit_count)
 
 /** Configure communication parameters for the channel
  */
-void AntChannel::Configure (unsigned period, uint8_t timeout, uint8_t frequency)
+void AntChannel::Configure ()
 {
     m_Stick->WriteMessage (
-        MakeMessage (SET_CHANNEL_PERIOD, m_ChannelNumber, period & 0xFF, (period >> 8) & 0xff));
+        MakeMessage (SET_CHANNEL_PERIOD, m_ChannelNumber, m_period & 0xFF, (m_period >> 8) & 0xff));
     Buffer response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, SET_CHANNEL_PERIOD, 0);
 
     m_Stick->WriteMessage (
-        MakeMessage (SET_CHANNEL_SEARCH_TIMEOUT, m_ChannelNumber, timeout));
+        MakeMessage (SET_CHANNEL_SEARCH_TIMEOUT, m_ChannelNumber, m_timeout));
     response = m_Stick->ReadMessage();
     CheckChannelResponse (response, m_ChannelNumber, SET_CHANNEL_SEARCH_TIMEOUT, 0);
 
     m_Stick->WriteMessage (
-        MakeMessage (SET_CHANNEL_RF_FREQ, m_ChannelNumber, frequency));
+        MakeMessage (SET_CHANNEL_RF_FREQ, m_ChannelNumber, m_frequency));
     response = m_Stick->ReadMessage();
     CheckChannelResponse(response, m_ChannelNumber, SET_CHANNEL_RF_FREQ, 0);
 }
@@ -705,7 +715,8 @@ AntStick::AntStick()
       m_Version (""),
       m_MaxNetworks (-1),
       m_MaxChannels (-1),
-      m_Network(-1)
+      m_Network(-1),
+      m_ChannelsWaitingCraetion()
 {
     try {
         m_Device = FindAntStick();
@@ -763,6 +774,8 @@ AntStick::~AntStick()
 {
     m_Reader = std::move (std::unique_ptr<AntMessageReader>());
     m_Writer = std::move (std::unique_ptr<AntMessageWriter>());
+    m_ChannelsWaitingCraetion.clear();
+    m_ChannelsWaitingCraetion.shrink_to_fit();
     libusb_close(m_DeviceHandle);
     libusb_unref_device(m_Device);
 }
@@ -890,7 +903,7 @@ void AntStick::SetNetworkKey (uint8_t key[8])
 bool AntStick::MaybeProcessMessage(const Buffer &message)
 {
     if (message.size() < 4)
-        throw std::runtime_error("Process wrong mwssage");
+        throw std::runtime_error("Process wrong message");
     auto channel = message[3];
 
     if (message[2] == BURST_TRANSFER_DATA)
@@ -904,6 +917,45 @@ bool AntStick::MaybeProcessMessage(const Buffer &message)
         }
     }
 
+    MaybeCreateChannel(message, channel);
+
+    return false;
+}
+
+bool AntStick::MaybeCreateChannel(const Buffer &message, int channelNumber)
+{
+    if (message[2] == BROADCAST_DATA)
+    {
+        // We received a broadcast message on this channel and we don'
+        // have a master serial number, find out who is sending us
+        // broadcast data
+        LOG_MSG("REQUEST_MESSAGE: SET_CHANNEL_ID for m_ChannelNumber = %d\n", channelNumber);
+        WriteMessage(MakeMessage(REQUEST_MESSAGE, channelNumber, SET_CHANNEL_ID));
+        m_ChannelsWaitingCraetion.push_back(channelNumber);
+    }
+    else if (message[2] == RESPONSE_CHANNEL_ID)
+    {
+        auto item = std::find(m_ChannelsWaitingCraetion.begin(), m_ChannelsWaitingCraetion.end(), channelNumber);
+        if (item != m_ChannelsWaitingCraetion.end())
+        {
+            uint8_t device_type = (uint8_t)message[6];
+            switch (device_type)
+            {
+            case HRM::ANT_DEVICE_TYPE:
+            {
+                auto hrm = new HeartRateMonitor(this);
+                return true;
+            }
+            case BIKE::ANT_DEVICE_TYPE:
+            {
+                auto bike = new FitnessEquipmentControl(this);
+                return true;
+            }
+            default:
+                break;
+            }
+        }
+    }
     return false;
 }
 

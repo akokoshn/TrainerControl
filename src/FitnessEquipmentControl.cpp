@@ -28,7 +28,7 @@
  * document available from https://www.thisisant.com
  */
 
-using namespace bike;
+using namespace BIKE;
 
 FitnessEquipmentControl::FitnessEquipmentControl(AntStick *stick, uint32_t device_number)
     : AntChannel(stick,

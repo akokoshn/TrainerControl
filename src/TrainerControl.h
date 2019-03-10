@@ -32,8 +32,7 @@ extern "C" TRAINERCONTROLDLL_API int CloseAntService();
 extern "C" TRAINERCONTROLDLL_API int RunSearch(void * ant_instanance, void ** pp_search_service, std::thread & thread, std::mutex & guard);
 extern "C" TRAINERCONTROLDLL_API int StopSearch(void ** pp_search_service, std::thread & thread);
 extern "C" TRAINERCONTROLDLL_API AntSession InitSession(void * ant_instanance, void * hrm_device, void * bike_device, std::mutex & guard);
-extern "C" TRAINERCONTROLDLL_API int GetHRMList(void * p_search_service, void ** devices, int & num_hrm);
-extern "C" TRAINERCONTROLDLL_API int GetBikeList(void * p_search_service, void ** devices, int & num_hrm);
+extern "C" TRAINERCONTROLDLL_API int GetDeviceList(void * p_search_service, void ** devices, int & num_devices);
 extern "C" TRAINERCONTROLDLL_API int CloseSession(AntSession & session);
 /*create separate thread assign with session*/
 extern "C" TRAINERCONTROLDLL_API int Run(AntSession & session, std::thread & thread);

@@ -237,6 +237,7 @@ protected:
     void RequestDataPage(uint8_t page_id, int transmit_count = 4);
 
 private:
+    void InternalInit(AntStick *stick);
     /* Derived classes will need to override these methods */
 
     /** Called when a message received on this channel and it is not a status
@@ -295,8 +296,11 @@ private:
     bool m_IdReqestOutstanding;
 
     AntStick *m_Stick;
+    unsigned m_period;
+    uint8_t m_timeout;
+    uint8_t m_frequency;
 
-    void Configure(unsigned period, uint8_t timeout, uint8_t frequency);
+    void Configure();
     void HandleMessage(const uint8_t *data, int size);
     void MaybeSendAckData();
     void OnChannelResponseMessage(const uint8_t *data, int size);
@@ -360,6 +364,7 @@ private:
     int NextChannelId() const;
 
     bool MaybeProcessMessage(const Buffer &message);
+    bool MaybeCreateChannel(const Buffer &message, int channelNumber);
 
     libusb_device *m_Device;
     libusb_device_handle *m_DeviceHandle;
@@ -378,6 +383,7 @@ private:
     std::unique_ptr<AntMessageWriter> m_Writer;
 
     std::vector<AntChannel*> m_Channels;
+    std::vector<int> m_ChannelsWaitingCraetion;
 };
 
 /** Read ANT messages from an USB device (the ANT stick) */

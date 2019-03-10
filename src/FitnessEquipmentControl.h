@@ -19,7 +19,7 @@
 
 #include "AntStick.h"
 
-namespace bike {
+namespace BIKE {
 
     // Values taken from the HRM ANT+ Device Profile document
     enum {

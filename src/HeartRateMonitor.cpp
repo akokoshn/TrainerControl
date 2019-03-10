@@ -27,7 +27,7 @@
  * available from https://www.thisisant.com
  */
 
-using namespace hrm;
+using namespace HRM;
 
 HeartRateMonitor::HeartRateMonitor (AntStick *stick, uint32_t device_number)
     : AntChannel(

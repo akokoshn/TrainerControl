@@ -19,7 +19,7 @@
 
 #include "AntStick.h"
 
-namespace hrm {
+namespace HRM {
 
     // Values taken from the HRM ANT+ Device Profile document
     enum {
