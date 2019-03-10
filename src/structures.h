@@ -36,3 +36,16 @@ struct Telemetry
     double spd;
     double pwr;
 };
+
+enum AntDeviceType
+{
+    HRM_Type,
+    BIKE_Type,
+    NONE_Type
+};
+struct AntDevice
+{
+    AntDevice() : m_type(NONE_Type), m_device(nullptr) {}
+    AntDeviceType m_type;
+    void * m_device;
+};

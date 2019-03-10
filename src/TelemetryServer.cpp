@@ -33,10 +33,9 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
     return out;
 }
 
-TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, FitnessEquipmentControl * fec, std::mutex & guard)
+TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, std::mutex & guard)
     : m_AntStick (stick),
       m_Hrm (hrm),
-      m_Fec (fec),
       m_current_telemetry(),
       m_guard(guard)
 {
@@ -64,24 +63,6 @@ void TelemetryServer::CollectTelemetry ()
     if (m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_OPEN)
         hr = m_Hrm->InstantHeartRate();
     m_current_telemetry.hr = hr ? hr : m_current_telemetry.hr;
-    
-    if (m_Fec && m_Fec->ChannelState() == AntChannel::CH_OPEN) {
-        m_current_telemetry.cad = m_Fec->InstantCadence();
-        m_current_telemetry.pwr = m_Fec->InstantPower();
-        m_current_telemetry.spd = m_Fec->InstantSpeed();
-    }
-}
-
-void TelemetryServer::ProcessMessage(const std::string &message)
-{
-    std::istringstream input(message);
-    std::string command;
-    double param;
-    input >> command >> param;
-    if(command == "SET-SLOPE" && m_Fec) {
-        std::lock_guard<std::mutex> Guard(m_guard);
-        m_Fec->SetSlope(param);
-    }
 }
 
 Telemetry TelemetryServer::GetTelemetry()

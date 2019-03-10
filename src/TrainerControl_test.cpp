@@ -82,20 +82,22 @@ int run_service()
     void * search_service;
     CHECK_RES(RunSearch(ant_handle, &search_service, search_thread, guard));
 
-    void ** hrm_list = new void*[max_channels];
-    memset(hrm_list, 0, max_channels);
-    void ** bike_list = new void*[max_channels];
-    memset(bike_list, 0, max_channels);
+    AntDevice ** device_list = new AntDevice*[max_channels];
+    for (int i = 0; i < max_channels; i++)
+        device_list[i] = new AntDevice();
 
-    int num_hrm = 0, num_bike = 0;
-    while (num_hrm == 0 || num_bike == 0)
+    int num_hrm = 0;
+    while (num_hrm == 0)
     {
+        int num_devices = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        GetHRMList(search_service, hrm_list, num_hrm);
-        GetBikeList(search_service, bike_list, num_bike);
+        GetDeviceList(search_service, device_list, num_devices);
+        for (int i = 0; i < num_devices; i++)
+            if (device_list[i]->m_type == HRM_Type)
+                num_hrm++;
     }
 
-    AntSession ant_session = InitSession(ant_handle, hrm_list[0], bike_list[0], guard);
+    AntSession ant_session = InitSession(ant_handle, &device_list[0], 1, guard);
     std::thread server_thread;
     CHECK_RES(Run(ant_session, server_thread));
     while (true)
@@ -105,9 +107,9 @@ int run_service()
         printf("HR = %lf, CAD = %lf, POWER = %lf, SPEED = %lf\n", t.hr, t.cad, t.pwr, t.spd);
         char key[2];
         printf("continue? [y/n]\n");
-        /*scanf_s("%1s", key, (unsigned)_countof(key));
+        scanf_s("%1s", key, (unsigned)_countof(key));
         if (0 == strcmp(key, "n"))
-            break;*/
+            break;
     }
     CHECK_RES(Stop(ant_session, server_thread));
     CHECK_RES(CloseSession(ant_session));
