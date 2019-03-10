@@ -24,12 +24,6 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
 {
     if (t.hr >= 0)
         out << "HR: " << t.hr;
-    if (t.cad >= 0)
-        out << ";CAD: " << t.cad;
-    if (t.pwr >= 0)
-        out << ";PWR: " << t.pwr;
-    if (t.spd >= 0)
-        out << ";SPD: " << t.spd;
     return out;
 }
 

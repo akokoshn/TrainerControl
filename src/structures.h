@@ -30,11 +30,8 @@ struct AntSession
 struct Telemetry
 {
     Telemetry()
-        : hr(-1), cad(-1), spd(-1), pwr(-1) {}
+        : hr(-1) {}
     double hr;
-    double cad;
-    double spd;
-    double pwr;
 };
 
 enum AntDeviceType

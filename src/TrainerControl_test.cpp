@@ -104,7 +104,7 @@ int run_service()
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(5000));
         Telemetry t = GetTelemetry(ant_session);
-        printf("HR = %lf, CAD = %lf, POWER = %lf, SPEED = %lf\n", t.hr, t.cad, t.pwr, t.spd);
+        printf("HR = %lf\n", t.hr);
         char key[2];
         printf("continue? [y/n]\n");
         scanf_s("%1s", key, (unsigned)_countof(key));
