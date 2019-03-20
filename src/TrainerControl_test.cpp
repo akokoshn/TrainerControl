@@ -75,6 +75,11 @@ int run_service()
 {
     void * ant_handle;
     int max_channels = 0;
+    
+    // reinit AntStick
+    CHECK_RES(InitAntService(&ant_handle, max_channels));
+    CHECK_RES(CloseAntService());
+
     CHECK_RES(InitAntService(&ant_handle, max_channels));
 
     std::thread search_thread;
