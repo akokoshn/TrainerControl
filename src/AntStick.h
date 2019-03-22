@@ -364,7 +364,6 @@ private:
     int NextChannelId() const;
 
     bool MaybeProcessMessage(const Buffer &message);
-    bool MaybeCreateChannel(const Buffer &message, int channelNumber);
 
     libusb_device *m_Device;
     libusb_device_handle *m_DeviceHandle;

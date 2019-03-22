@@ -87,6 +87,8 @@ int run_service()
     void * search_service;
     CHECK_RES(RunSearch(ant_handle, &search_service, search_thread, guard));
 
+    CHECK_RES(AddDeviceForSearch(search_service, HRM_Type));
+
     AntDevice ** device_list = new AntDevice*[max_channels];
     for (int i = 0; i < max_channels; i++)
         device_list[i] = new AntDevice();

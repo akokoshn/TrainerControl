@@ -24,6 +24,7 @@
 
 SearchService::SearchService(AntStick *stick, std::mutex & guard) :
     m_AntStick(stick),
+    m_NumDevices(0),
     m_guard(guard)
 {
     std::lock_guard<std::mutex> Guard(m_guard);
@@ -50,6 +51,26 @@ std::vector<AntChannel*> SearchService::GetActiveDevices()
 {
     // non block call, so no mutex protection
     return m_pDevices;
+}
+int SearchService::AddDeviceForSearch(AntDeviceType type)
+{
+    std::lock_guard<std::mutex> Guard(m_guard);
+    if (m_NumDevices >= m_pDevices.size())
+        return -1;
+
+    switch (type)
+    {
+    case HRM_Type:
+        m_pDevices[m_NumDevices] = new HeartRateMonitor(m_AntStick);
+        break;
+    case BIKE_Type:
+        m_pDevices[m_NumDevices] = new FitnessEquipmentControl(m_AntStick);
+        break;
+    case NONE_Type:
+    default:
+        return -1;
+    }
+    m_NumDevices++;
 }
 void SearchService::CheckActiveDevices()
 {

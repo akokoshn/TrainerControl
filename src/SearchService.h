@@ -28,6 +28,7 @@ public:
 
     void Tick();
     std::vector<AntChannel*> GetActiveDevices();
+    int AddDeviceForSearch(AntDeviceType type);
 
 private:
 
@@ -35,6 +36,7 @@ private:
 
     AntStick *m_AntStick;
     std::vector<AntChannel*> m_pDevices;
+    unsigned int m_NumDevices;
 
     std::mutex & m_guard;
 };

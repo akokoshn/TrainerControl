@@ -917,45 +917,6 @@ bool AntStick::MaybeProcessMessage(const Buffer &message)
         }
     }
 
-    MaybeCreateChannel(message, channel);
-
-    return false;
-}
-
-bool AntStick::MaybeCreateChannel(const Buffer &message, int channelNumber)
-{
-    if (message[2] == BROADCAST_DATA)
-    {
-        // We received a broadcast message on this channel and we don'
-        // have a master serial number, find out who is sending us
-        // broadcast data
-        LOG_MSG("REQUEST_MESSAGE: SET_CHANNEL_ID for m_ChannelNumber = %d\n", channelNumber);
-        WriteMessage(MakeMessage(REQUEST_MESSAGE, channelNumber, SET_CHANNEL_ID));
-        m_ChannelsWaitingCraetion.push_back(channelNumber);
-    }
-    else if (message[2] == RESPONSE_CHANNEL_ID)
-    {
-        auto item = std::find(m_ChannelsWaitingCraetion.begin(), m_ChannelsWaitingCraetion.end(), channelNumber);
-        if (item != m_ChannelsWaitingCraetion.end())
-        {
-            uint8_t device_type = (uint8_t)message[6];
-            switch (device_type)
-            {
-            case HRM::ANT_DEVICE_TYPE:
-            {
-                auto hrm = new HeartRateMonitor(this);
-                return true;
-            }
-            case BIKE::ANT_DEVICE_TYPE:
-            {
-                auto bike = new FitnessEquipmentControl(this);
-                return true;
-            }
-            default:
-                break;
-            }
-        }
-    }
     return false;
 }
 
