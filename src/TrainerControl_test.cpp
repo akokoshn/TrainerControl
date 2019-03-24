@@ -17,9 +17,12 @@
  */
 #include <stdio.h>
 #include <chrono>
+#include <string>
 #include "test_suites.h"
 
 #define CHECK_RES(res) if (res != 0) return res
+
+bool STOP_ALL;
 
 int run_unit_tests()
 {
@@ -73,6 +76,7 @@ int run_unit_tests()
 
 int run_service()
 {
+    STOP_ALL = false;
     void * ant_handle;
     int max_channels = 0;
     
@@ -84,6 +88,7 @@ int run_service()
 
     std::thread search_thread;
     std::mutex guard;
+    std::mutex local_guard;
     void * search_service;
     CHECK_RES(RunSearch(ant_handle, &search_service, search_thread, guard));
 
@@ -92,34 +97,78 @@ int run_service()
     AntDevice ** device_list = new AntDevice*[max_channels];
     for (int i = 0; i < max_channels; i++)
         device_list[i] = new AntDevice();
+    
+    std::vector<bool> is_assigned;
+    is_assigned.resize(max_channels);
+    std::fill(is_assigned.begin(), is_assigned.end(), false);
 
-    int num_hrm = 0;
-    while (num_hrm == 0)
+    std::vector< FILE *> files;
+    files.resize(max_channels);
+    std::fill(files.begin(), files.end(), nullptr);
+
+    std::vector<std::thread> client_threads;
+    client_threads.resize(max_channels);
+
+    uint32_t num_hrm = 0;
+    while (true)
     {
         int num_devices = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         GetDeviceList(search_service, device_list, num_devices);
+        printf("Found HRMs:\n");
         for (int i = 0; i < num_devices; i++)
             if (device_list[i]->m_type == HRM_Type)
+            {
                 num_hrm++;
-    }
-
-    AntSession ant_session = InitSession(ant_handle, &device_list[0], 1, guard);
-    std::thread server_thread;
-    CHECK_RES(Run(ant_session, server_thread));
-    while (true)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-        Telemetry t = GetTelemetry(ant_session);
-        printf("HR = %lf\n", t.hr);
+                printf("    (%d) %d\, is assigned %s\n", i, device_list[i]->m_device_number, is_assigned[i] ? "true" : "false");
+            }
+        if (num_devices == 0)
+            continue;
+        uint32_t device_for_assign = 0;
+        scanf_s("%d", &device_for_assign, sizeof(device_for_assign));
+        if (device_for_assign < num_hrm && !is_assigned[device_for_assign])
+        {
+            is_assigned[device_for_assign] = true;
+            std::string file_name = std::to_string(device_list[device_for_assign]->m_device_number);
+            fopen_s(&files[device_for_assign], file_name.c_str(), "w");
+            auto funk = [ant_handle, device_list, files, device_for_assign](std::mutex & guard, std::mutex & local_guard)
+            {
+                AntSession ant_session = InitSession(ant_handle, &device_list[device_for_assign], 1, guard);
+                std::thread server_thread;
+                CHECK_RES(Run(ant_session, server_thread));
+                while (!STOP_ALL)
+                {
+                    std::unique_lock<std::mutex> Guard(local_guard);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    Telemetry t = GetTelemetry(ant_session);
+                    if (files[device_for_assign] != nullptr && t.hr > 0)
+                        fprintf(files[device_for_assign], "%lf\n", t.hr);
+                }
+                CHECK_RES(Stop(ant_session, server_thread));
+                CHECK_RES(CloseSession(ant_session));
+            };
+            client_threads[device_for_assign] = std::thread(funk, std::ref(guard), std::ref(local_guard));
+        }
+        else
+            printf("ERR: can't assign device %d\n", device_for_assign);
+        
         char key[2];
         printf("continue? [y/n]\n");
         scanf_s("%1s", key, (unsigned)_countof(key));
         if (0 == strcmp(key, "n"))
             break;
+
     }
-    CHECK_RES(Stop(ant_session, server_thread));
-    CHECK_RES(CloseSession(ant_session));
+
+    STOP_ALL = true;
+    local_guard.lock();
+    for (auto & it : files)
+        if (it != nullptr)
+        {
+            fclose(it);
+            it = nullptr;
+        }
+    local_guard.unlock();
     CHECK_RES(StopSearch(&search_service, search_thread));
     CHECK_RES(CloseAntService());
     return 0;

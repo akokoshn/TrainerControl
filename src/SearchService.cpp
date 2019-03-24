@@ -36,8 +36,8 @@ SearchService::~SearchService()
     std::lock_guard<std::mutex> Guard(m_guard);
     LOG_MSG("Destroy search service");
     //TODO add cloasing channels
-    for (auto it : m_pDevices)
-        delete it;
+    for (auto & it : m_pDevices)
+        it.release();
     m_pDevices.shrink_to_fit();
     m_pDevices.clear();
 }
@@ -47,7 +47,7 @@ void SearchService::Tick()
     TickAntStick(m_AntStick);
     CheckActiveDevices();
 }
-std::vector<AntChannel*> SearchService::GetActiveDevices()
+const std::vector<std::unique_ptr<AntChannel>>& SearchService::GetDevices() const
 {
     // non block call, so no mutex protection
     return m_pDevices;
@@ -61,10 +61,10 @@ int SearchService::AddDeviceForSearch(AntDeviceType type)
     switch (type)
     {
     case HRM_Type:
-        m_pDevices[m_NumDevices] = new HeartRateMonitor(m_AntStick);
+        m_pDevices[m_NumDevices].reset(new HeartRateMonitor(m_AntStick));
         break;
     case BIKE_Type:
-        m_pDevices[m_NumDevices] = new FitnessEquipmentControl(m_AntStick);
+        m_pDevices[m_NumDevices].reset(new FitnessEquipmentControl(m_AntStick));
         break;
     case NONE_Type:
     default:
@@ -76,18 +76,16 @@ void SearchService::CheckActiveDevices()
 {
     for (auto & it : m_pDevices)
     {
-        if (it && it->ChannelState() == AntChannel::CH_CLOSED) {
+        if (it.get() && it->ChannelState() == AntChannel::CH_CLOSED) {
             if (it->ChannelId().DeviceType == HRM::ANT_DEVICE_TYPE)
             {
                 LOG_MSG("Re Creating HRM channel");
-                delete it;
-                it = new HeartRateMonitor(m_AntStick);
+                it.reset(new HeartRateMonitor(m_AntStick));
             }
             else if (it->ChannelId().DeviceType ==  BIKE::ANT_DEVICE_TYPE)
             {
                 LOG_MSG("Re Creating bike channel");
-                delete it;
-                it = new FitnessEquipmentControl(m_AntStick);
+                it.reset(new FitnessEquipmentControl(m_AntStick));
             }
         }
     }

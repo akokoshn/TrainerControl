@@ -26,7 +26,7 @@
 #include <stdint.h>
 
 
-#define DEBUG
+//#define DEBUG
 //#define DEBUG_DUMP
 
 // .................................................... LibusbError ....

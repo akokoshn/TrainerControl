@@ -27,12 +27,14 @@ std::ostream& operator<<(std::ostream &out, const Telemetry &t)
     return out;
 }
 
-TelemetryServer::TelemetryServer (AntStick * stick, HeartRateMonitor * hrm, std::mutex & guard)
+TelemetryServer::TelemetryServer (AntStick * stick, std::unique_ptr<AntChannel> * device, std::mutex & guard)
     : m_AntStick (stick),
-      m_Hrm (hrm),
+      m_Hrm(nullptr),
       m_current_telemetry(),
       m_guard(guard)
 {
+    if (device && device->get() && device->get()->ChannelId().DeviceType == HRM::ANT_DEVICE_TYPE)
+        m_Hrm = device;
     LOG_MSG("Started server");
 }
 
@@ -54,8 +56,8 @@ void TelemetryServer::CheckSensorHealth()
 void TelemetryServer::CollectTelemetry ()
 {
     double hr = 0;
-    if (m_Hrm && m_Hrm->ChannelState() == AntChannel::CH_OPEN)
-        hr = m_Hrm->InstantHeartRate();
+    if (m_Hrm && m_Hrm->get() && m_Hrm->get()->ChannelState() == AntChannel::CH_OPEN)
+        hr = ((HeartRateMonitor *)m_Hrm->get())->InstantHeartRate();
     m_current_telemetry.hr = hr ? hr : m_current_telemetry.hr;
 }
 

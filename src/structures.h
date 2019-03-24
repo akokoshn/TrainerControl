@@ -44,5 +44,6 @@ struct AntDevice
 {
     AntDevice() : m_type(NONE_Type), m_device(nullptr) {}
     AntDeviceType m_type;
+    uint32_t m_device_number;
     void * m_device;
 };
