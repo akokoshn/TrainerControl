@@ -74,6 +74,38 @@ int run_unit_tests()
     return res;
 }
 
+#if defined _WIN32 || _WIN64
+#include "windows.h"
+
+void _CreateWindow(WNDCLASS &wc, HWND &hWind, LPCSTR name)
+{
+    // Register the window class.
+    const wchar_t CLASS_NAME[] = L"Sample Window Class";
+
+    wc.lpfnWndProc = DefWindowProc;// WindowProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.lpszClassName = (LPCSTR)CLASS_NAME;
+    RegisterClass(&wc);
+
+    hWind = CreateWindowEx(
+        0,                              // Optional window styles.
+        (LPCSTR)CLASS_NAME,                     // Window class
+        (LPCSTR)L"Learn to Program Windows",    // Window text
+        WS_OVERLAPPEDWINDOW,            // Window style
+
+        // Size and position
+        10, 10, 310, 160,
+
+        NULL,       // Parent window    
+        NULL,       // Menu
+        GetModuleHandle(NULL),  // Instance handle
+        NULL        // Additional application data
+    );
+    SetWindowTextA(hWind, name);
+    ShowWindow(hWind, SW_SHOWDEFAULT);
+    UpdateWindow(hWind);
+}
+#endif
 int run_service()
 {
     STOP_ALL = false;
@@ -131,8 +163,13 @@ int run_service()
             is_assigned[device_for_assign] = true;
             std::string file_name = std::to_string(device_list[device_for_assign]->m_device_number);
             fopen_s(&files[device_for_assign], file_name.c_str(), "w");
-            auto funk = [ant_handle, device_list, files, device_for_assign](std::mutex & guard, std::mutex & local_guard)
+            auto funk = [ant_handle, device_list, files, device_for_assign, file_name](std::mutex & guard, std::mutex & local_guard)
             {
+#if defined _WIN32 || _WIN64
+                HWND hWind = nullptr;
+                WNDCLASS wc = {};
+                _CreateWindow(wc, hWind, (LPCSTR)file_name.c_str());
+#endif
                 AntSession ant_session = InitSession(ant_handle, &device_list[device_for_assign], 1, guard);
                 std::thread server_thread;
                 CHECK_RES(Run(ant_session, server_thread));
@@ -143,7 +180,33 @@ int run_service()
                     Telemetry t = GetTelemetry(ant_session);
                     if (files[device_for_assign] != nullptr && t.hr > 0)
                         fprintf(files[device_for_assign], "%lf\n", t.hr);
+#if defined _WIN32 || _WIN64
+                    if (hWind != nullptr)
+                    {
+                        UpdateWindow(hWind);
+                        RECT rect;
+                        GetClientRect(hWind, &rect);
+
+                        std::string hr;
+                        hr = std::to_string((unsigned int)t.hr);
+
+                        HDC dc = GetWindowDC(hWind);
+                        int res = DrawText(dc, hr.c_str(), hr.length(), &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                        DeleteDC(dc);
+
+                        MSG Msg;
+                        if (GetMessage(&Msg, NULL, 0, 0) > 0)
+                        {
+                            TranslateMessage(&Msg);
+                            DispatchMessage(&Msg);
+                        }
+                    }
+#endif
                 }
+#if defined _WIN32 || _WIN64
+                if (hWind != nullptr)
+                    DestroyWindow(hWind);
+#endif
                 CHECK_RES(Stop(ant_session, server_thread));
                 CHECK_RES(CloseSession(ant_session));
             };
@@ -161,6 +224,12 @@ int run_service()
     }
 
     STOP_ALL = true;
+    CHECK_RES(StopSearch(&search_service, search_thread));
+    CHECK_RES(CloseAntService());
+
+    for (auto & it : client_threads)
+        if (it.joinable())
+            it.join();
     local_guard.lock();
     for (auto & it : files)
         if (it != nullptr)
@@ -169,8 +238,6 @@ int run_service()
             it = nullptr;
         }
     local_guard.unlock();
-    CHECK_RES(StopSearch(&search_service, search_thread));
-    CHECK_RES(CloseAntService());
     return 0;
 }
 
