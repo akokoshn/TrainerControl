@@ -33,7 +33,7 @@ extern "C" TRAINERCONTROLDLL_API int RunSearch(void * ant_instanance, void ** pp
 extern "C" TRAINERCONTROLDLL_API int AddDeviceForSearch(void * p_search_service, AntDeviceType type);
 extern "C" TRAINERCONTROLDLL_API int StopSearch(void ** pp_search_service, std::thread & thread);
 extern "C" TRAINERCONTROLDLL_API AntSession InitSession(void * ant_instanance, AntDevice ** devices, int num_devices, std::mutex & guard);
-extern "C" TRAINERCONTROLDLL_API int GetDeviceList(void * p_search_service, AntDevice ** devices, int & num_devices);
+extern "C" TRAINERCONTROLDLL_API int GetDeviceList(void * p_search_service, AntDevice ** devices, unsigned int & num_devices, unsigned int & num_active_devices);
 extern "C" TRAINERCONTROLDLL_API int CloseSession(AntSession & session);
 /*create separate thread assign with session*/
 extern "C" TRAINERCONTROLDLL_API int Run(AntSession & session, std::thread & thread);

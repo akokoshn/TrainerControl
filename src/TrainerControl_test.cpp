@@ -144,17 +144,18 @@ int run_service()
     uint32_t num_hrm = 0;
     while (true)
     {
-        int num_devices = 0;
+        unsigned int num_devices = 0;
+        unsigned int num_active_devices = 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        GetDeviceList(search_service, device_list, num_devices);
+        GetDeviceList(search_service, device_list, num_devices, num_active_devices);
         printf("Found HRMs:\n");
-        for (int i = 0; i < num_devices; i++)
+        for (int i = 0; i < num_active_devices; i++)
             if (device_list[i]->m_type == HRM_Type)
             {
                 num_hrm++;
                 printf("    (%d) %d\, is assigned %s\n", i, device_list[i]->m_device_number, is_assigned[i] ? "true" : "false");
             }
-        if (num_devices == 0)
+        if (num_active_devices == 0)
             continue;
         uint32_t device_for_assign = 0;
         scanf_s("%d", &device_for_assign, sizeof(device_for_assign));
@@ -220,7 +221,8 @@ int run_service()
         scanf_s("%1s", key, (unsigned)_countof(key));
         if (0 == strcmp(key, "n"))
             break;
-
+        if (num_devices == num_active_devices)
+            CHECK_RES(AddDeviceForSearch(search_service, HRM_Type));
     }
 
     STOP_ALL = true;
