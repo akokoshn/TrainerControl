@@ -19,4 +19,4 @@
 #pragma once
 
 //#define FAKE_CALL
-//#define ENABLE_UNIT_TESTS
+#define ENABLE_UNIT_TESTS

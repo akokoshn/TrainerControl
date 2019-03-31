@@ -40,7 +40,13 @@ int run_unit_tests()
         printf("test_close FAILED\n");
         res = -1;
     }
-    SessionInit test_session_init;
+    SearchRun test_run_search;
+    if (false == test_run_search.run_case())
+    {
+        printf("test_run_search FAILED\n");
+        res = -1;
+    }
+    /*SessionInit test_session_init;
     if (false == test_session_init.run_case())
     {
         printf("test_session_init FAILED\n");
@@ -69,7 +75,7 @@ int run_unit_tests()
     {
         printf("test_get_telemetry FAILED\n");
         res = -1;
-    }
+    }*/
 #endif// ENABLE_UNIT_TESTS
     return res;
 }

@@ -108,18 +108,22 @@ protected:
             ant_handle = new void*;
         else
             ant_handle = nullptr;
+        int max_channels;
         if (0 == strcmp("reinit", _case.description))
         {
-            CHECK_EQ(0, InitAntService(ant_handle));
+            CHECK_EQ(0, InitAntService(ant_handle, max_channels));
             CHECK_EQ(0, CloseAntService());
         }
         if (0 == strcmp("double init", _case.description))
-            CHECK_EQ(0, InitAntService(ant_handle));
+            CHECK_EQ(0, InitAntService(ant_handle, max_channels));
         return 0;
     }
     virtual int execute(const test_case _case)
     {
-        CHECK_EQ(_case.expected, InitAntService(ant_handle));
+        int max_channels = 0;
+        CHECK_EQ(_case.expected, InitAntService(ant_handle, max_channels));
+        if (_case.expected == 0)
+            CHECK_NOT_EQ(0, max_channels);
         return 0;
     }
     virtual int complete(const test_case _case)
@@ -147,8 +151,9 @@ protected:
     virtual int prepare(const test_case _case)
     {
         ant_handle = new void*;
+        int max_channels;
         if (0 != strcmp("not init", _case.description))
-            CHECK_EQ(0, InitAntService(ant_handle));
+            CHECK_EQ(0, InitAntService(ant_handle, max_channels));
         return 0;
     }
     virtual int execute(const test_case _case)
@@ -164,7 +169,56 @@ protected:
     void ** ant_handle;
 };
 
-class SessionInit : public test_suite
+class SearchRun : public test_suite
+{
+public:
+    SearchRun()
+    {
+        test_cases =
+        {
+            {VALID, "none", 0},
+            {BAD_PARAM, "no ant stick", -1},
+            {BAD_PARAM, "no service pointer", -1},
+        };
+        printf("test run search [%d]\n", test_cases.size());
+    }
+    ~SearchRun()
+    {
+        delete search_service;
+    }
+protected:
+    virtual int prepare(const test_case _case)
+    {
+        int max_channels;
+        CHECK_EQ(0, InitAntService(&ant_handle, max_channels));
+        search_service = new void*;
+        if (0 == strcmp("no ant stick", _case.description))
+            ant_handle = nullptr;
+        if (0 == strcmp("no service pointer", _case.description))
+            search_service = nullptr;
+        return 0;
+    }
+    virtual int execute(const test_case _case)
+    {
+        CHECK_EQ(_case.expected, RunSearch(ant_handle, search_service, search_thread, guard));
+
+        return 0;
+    }
+    virtual int complete(const test_case _case)
+    {
+        if (_case.expected == 0)
+            CHECK_EQ(0, StopSearch(search_service, search_thread));
+        CHECK_EQ(0, CloseAntService());
+        return 0;
+    }
+
+    void * ant_handle;
+    void ** search_service;
+    std::thread search_thread;
+    std::mutex guard;
+};
+
+/*class SessionInit : public test_suite
 {
 public:
     SessionInit()
@@ -414,5 +468,5 @@ protected:
     void * ant_handle;
     AntSession ant_session;
     std::thread server_thread;
-};
+};*/
 #endif//ENABLE_UNIT_TESTS
