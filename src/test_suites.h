@@ -91,7 +91,8 @@ protected:
 class ServiceInit : public test_suite
 {
 public:
-    ServiceInit()
+    ServiceInit():
+        ant_handle(nullptr)
     {
         test_cases =
         {
@@ -115,20 +116,22 @@ protected:
             CHECK_EQ(0, CloseAntService());
         }
         if (0 == strcmp("double init", _case.description))
-            CHECK_EQ(0, InitAntService(ant_handle, max_channels));
+        {
+            CHECK_EQ(0, InitAntService(ant_handle, max_channels))
+        }
         return 0;
     }
     virtual int execute(const test_case _case)
     {
         int max_channels = 0;
-        CHECK_EQ(_case.expected, InitAntService(ant_handle, max_channels));
+        CHECK_EQ(_case.expected, InitAntService(ant_handle, max_channels))
         if (_case.expected == 0)
-            CHECK_NOT_EQ(0, max_channels);
+            CHECK_NOT_EQ(0, max_channels)
         return 0;
     }
     virtual int complete(const test_case _case)
     {
-        CHECK_EQ(0, CloseAntService());
+        CHECK_EQ(0, CloseAntService())
         return 0;
     }
 
@@ -140,6 +143,8 @@ class ServiceClose : public test_suite
 public:
     ServiceClose()
     {
+        ant_handle = nullptr;
+
         test_cases =
         {
             {VALID, "none", 0}
@@ -153,12 +158,14 @@ protected:
         ant_handle = new void*;
         int max_channels;
         if (0 != strcmp("not init", _case.description))
-            CHECK_EQ(0, InitAntService(ant_handle, max_channels));
+        {
+            CHECK_EQ(0, InitAntService(ant_handle, max_channels))
+        }
         return 0;
     }
     virtual int execute(const test_case _case)
     {
-        CHECK_EQ(_case.expected, CloseAntService());
+        CHECK_EQ(_case.expected, CloseAntService())
         return 0;
     }
     virtual int complete(const test_case _case)
@@ -172,8 +179,13 @@ protected:
 class SearchRun : public test_suite
 {
 public:
-    SearchRun()
+    SearchRun():
+        ant_handle(nullptr),
+        search_thread(),
+        guard()
     {
+        search_service = new void*;
+
         test_cases =
         {
             {VALID, "none", 0},
@@ -190,25 +202,33 @@ protected:
     virtual int prepare(const test_case _case)
     {
         int max_channels;
-        CHECK_EQ(0, InitAntService(&ant_handle, max_channels));
-        search_service = new void*;
-        if (0 == strcmp("no ant stick", _case.description))
-            ant_handle = nullptr;
-        if (0 == strcmp("no service pointer", _case.description))
-            search_service = nullptr;
+        CHECK_EQ(0, InitAntService(&ant_handle, max_channels))
         return 0;
     }
     virtual int execute(const test_case _case)
     {
-        CHECK_EQ(_case.expected, RunSearch(ant_handle, search_service, search_thread, guard));
+        if (0 == strcmp("no service pointer", _case.description))
+        {
+            CHECK_EQ(_case.expected, RunSearch(ant_handle, nullptr, search_thread, guard))
+        }
+        else if (0 == strcmp("no ant stick", _case.description))
+        {
+            CHECK_EQ(_case.expected, RunSearch(nullptr, search_service, search_thread, guard))
+        }
+        else
+        {
+            CHECK_EQ(_case.expected, RunSearch(ant_handle, search_service, search_thread, guard))
+        }
 
         return 0;
     }
     virtual int complete(const test_case _case)
     {
         if (_case.expected == 0)
-            CHECK_EQ(0, StopSearch(search_service, search_thread));
-        CHECK_EQ(0, CloseAntService());
+        {
+            CHECK_EQ(0, StopSearch(search_service, search_thread))
+        }
+        CHECK_EQ(0, CloseAntService())
         return 0;
     }
 
@@ -218,6 +238,132 @@ protected:
     std::mutex guard;
 };
 
+class SearchStop : public SearchRun
+{
+public:
+    SearchStop():
+        other_thread(),
+        null_thread()
+    {
+        test_cases =
+        {
+            {VALID, "none", 0},
+            {BAD_PARAM, "no serach service", -1},
+            {BAD_PARAM, "wrong thread null", -1},
+            {BAD_PARAM, "wrong thread other", -1},
+        };
+        printf("test stop search [%d]\n", test_cases.size());
+    }
+    ~SearchStop()
+    {}
+protected:
+    virtual int prepare(const test_case _case)
+    {
+        int max_channels;
+        CHECK_EQ(0, InitAntService(&ant_handle, max_channels))
+        if (0 == strcmp("wrong thread other", _case.description))
+            other_thread = std::thread([]() { std::this_thread::sleep_for(std::chrono::milliseconds(1000)); });
+
+        return RunSearch(ant_handle, search_service, search_thread, guard);
+    }
+    virtual int execute(const test_case _case)
+    {
+        if (0 == strcmp("wrong thread null", _case.description))
+        {
+            CHECK_EQ(_case.expected, StopSearch(search_service, null_thread))
+        }
+        else if (0 == strcmp("wrong thread other", _case.description))
+        {
+            CHECK_EQ(_case.expected, StopSearch(search_service, other_thread))
+        }
+        else if (0 == strcmp("no serach service", _case.description))
+        {
+            CHECK_EQ(_case.expected, StopSearch(nullptr, search_thread))
+        }
+        else
+        {
+            CHECK_EQ(_case.expected, StopSearch(search_service, search_thread))
+        }
+
+        return 0;
+    }
+    virtual int complete(const test_case _case)
+    {
+        if (other_thread.joinable())
+            other_thread.join();
+        if (_case.expected != 0)
+        {
+            CHECK_EQ(0, StopSearch(search_service, search_thread))
+        }
+        CHECK_EQ(0, CloseAntService())
+        return 0;
+    }
+
+    std::thread other_thread;
+    std::thread null_thread;
+};
+
+class SearchAddDevice : public SearchRun
+{
+public:
+    SearchAddDevice():
+        device_type(HRM_Type),
+        max_channels(0)
+    {
+        test_cases =
+        {
+            {VALID, "hrm", 0},
+            {BAD_PARAM, "no search service", -1},
+            {BAD_PARAM, "wrong device type", -1},
+            {BAD_PARAM, "wrong device number", -1},
+        };
+        printf("test add device for search [%d]\n", test_cases.size());
+    }
+    ~SearchAddDevice()
+    {}
+protected:
+    virtual int prepare(const test_case _case)
+    {
+        device_type = HRM_Type;
+        CHECK_EQ(0, InitAntService(&ant_handle, max_channels))
+        CHECK_EQ(0, RunSearch(ant_handle, search_service, search_thread, guard))
+        return 0;
+    }
+    virtual int execute(const test_case _case)
+    {
+        if (0 == strcmp("no search service", _case.description))
+        {
+            CHECK_EQ(_case.expected, AddDeviceForSearch(nullptr, device_type))
+        }
+        else if (0 == strcmp("wrong device type", _case.description))
+        {
+            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, NONE_Type))
+        }
+        else if (0 == strcmp("wrong device number", _case.description))
+        {
+            for (int i = 0; i < max_channels; i++)
+            {
+                CHECK_EQ(0, AddDeviceForSearch(search_service, device_type))
+            }
+            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, device_type))
+        }
+        else
+        {
+            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, device_type))
+        }
+
+        return 0;
+    }
+    virtual int complete(const test_case _case)
+    {
+        CHECK_EQ(0, StopSearch(search_service, search_thread))
+        CHECK_EQ(0, CloseAntService())
+        return 0;
+    }
+
+    AntDeviceType device_type;
+    int max_channels;
+};
 /*class SessionInit : public test_suite
 {
 public:

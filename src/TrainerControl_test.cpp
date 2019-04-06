@@ -46,6 +46,18 @@ int run_unit_tests()
         printf("test_run_search FAILED\n");
         res = -1;
     }
+    SearchStop test_stop_search;
+    if (false == test_stop_search.run_case())
+    {
+        printf("test_stop_search FAILED\n");
+        res = -1;
+    }
+    SearchAddDevice test_add_device_for_search;
+    if (false == test_add_device_for_search.run_case())
+    {
+        printf("test_add_device_for_search FAILED\n");
+        res = -1;
+    }
     /*SessionInit test_session_init;
     if (false == test_session_init.run_case())
     {
