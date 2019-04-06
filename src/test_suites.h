@@ -325,6 +325,7 @@ protected:
     virtual int prepare(const test_case _case)
     {
         device_type = HRM_Type;
+        max_channels = 0;
         CHECK_EQ(0, InitAntService(&ant_handle, max_channels))
         CHECK_EQ(0, RunSearch(ant_handle, search_service, search_thread, guard))
         return 0;
@@ -337,19 +338,19 @@ protected:
         }
         else if (0 == strcmp("wrong device type", _case.description))
         {
-            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, NONE_Type))
+            CHECK_EQ(_case.expected, AddDeviceForSearch(*search_service, NONE_Type))
         }
         else if (0 == strcmp("wrong device number", _case.description))
         {
             for (int i = 0; i < max_channels; i++)
             {
-                CHECK_EQ(0, AddDeviceForSearch(search_service, device_type))
+                CHECK_EQ(0, AddDeviceForSearch(*search_service, device_type))
             }
-            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, device_type))
+            CHECK_EQ(_case.expected, AddDeviceForSearch(*search_service, device_type))
         }
         else
         {
-            CHECK_EQ(_case.expected, AddDeviceForSearch(search_service, device_type))
+            CHECK_EQ(_case.expected, AddDeviceForSearch(*search_service, device_type))
         }
 
         return 0;
