@@ -23,6 +23,8 @@
 
 #if defined(ENABLE_UNIT_TESTS)
 
+#define TIMOUT_CONNECTION 60
+
 #define CHECK_EQ(val1, val2) if (val1 != val2) { printf("NOT EQUAL\n"); return -1;}
 #define CHECK_NOT_EQ(val1, val2) if (val1 == val2) { printf("EQUAL\n"); return -1;}
 template <typename T>
@@ -365,55 +367,92 @@ protected:
     AntDeviceType device_type;
     int max_channels;
 };
-/*class SessionInit : public test_suite
+class SessionInit : public SearchAddDevice
 {
 public:
-    SessionInit()
+    SessionInit():
+        ant_session(),
+        devices(nullptr),
+        num_devices(0)
     {
         test_cases =
         {
             {VALID, "none", 0},
-            {BAD_PARAM, "null ptr", -1},
-            //{BAD_PARAM, "wrong ptr", -1},
+            {BAD_PARAM, "ant instance null ptr", -1},
+            {BAD_PARAM, "device list null ptr", -1},
+            {BAD_PARAM, "device null ptr", -1},
+            {BAD_PARAM, "device wrong type", -1},
+            //{BAD_PARAM, "device wrong number", -1},
         };
         printf("test init session [%d]\n", test_cases.size());
     }
 protected:
     virtual int prepare(const test_case _case)
     {
-        ant_session = {};
-        if (0 == strcmp("null ptr", _case.description))
-            ant_handle = nullptr;
-        else if (0 == strcmp("wrong ptr", _case.description))
-            ant_handle = (void*)0xff;
-        else
-            CHECK_EQ(0, InitAntService(&ant_handle));
+        devices = nullptr;
+        if (0 == strcmp("ant instance null ptr", _case.description))
+            return 0;
+        CHECK_EQ(0, InitAntService(&ant_handle, max_channels));
+        if (0 == strcmp("device list null ptr", _case.description))
+            return 0;
+        devices = new AntDevice* [1];
+        devices[0] = nullptr;
+        num_devices = 1;
+        if (0 == strcmp("device null ptr", _case.description))
+            return 0;
+        devices[0] = new AntDevice();
+        if (0 == strcmp("device wrong type", _case.description)) {
+            devices[0]->m_type = NONE_Type;
+            return 0;
+        }
+
+        CHECK_EQ(0, RunSearch(ant_handle, search_service, search_thread, guard))
+        CHECK_EQ(0, AddDeviceForSearch(*search_service, HRM_Type))
+        unsigned int num_of_registred_devices = 0;
+        unsigned int num_of_connected_devices = 0;
+        unsigned int num_iterations = 0;
+        while (!num_of_connected_devices && num_iterations < TIMOUT_CONNECTION) {// waiting for device connection, timeout fail after 1 min
+            CHECK_EQ(0, GetDeviceList(*search_service, devices, num_of_registred_devices, num_of_connected_devices))
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            num_iterations++;
+        }
+        CHECK_NOT_EQ(TIMOUT_CONNECTION, num_iterations)
+
         return 0;
     }
     virtual int execute(const test_case _case)
     {
-        ant_session = InitSession(ant_handle, 0);
-        if (_case.expected == 0)
-        {
-            CHECK_EQ(false, ant_session.m_bIsRun);
-            CHECK_NOT_EQ(nullptr, ant_session.m_AntStick);
-            CHECK_NOT_EQ(nullptr, ant_session.m_TelemtryServer);
+        if (0 == strcmp("ant instance null ptr", _case.description))
+            ant_session = InitSession(nullptr, devices, num_devices, guard);
+        else
+            ant_session = InitSession(&ant_handle, devices, num_devices, guard);
+
+        CHECK_EQ(false, ant_session.m_bIsRun)
+        if (_case.expected == 0) {
+            CHECK_NOT_EQ(nullptr, ant_session.m_AntStick)
+            CHECK_NOT_EQ(nullptr, ant_session.m_TelemtryServer)
+        }
+        else {
+            CHECK_EQ(nullptr, ant_session.m_TelemtryServer)
         }
         return 0;
     }
     virtual int complete(const test_case _case)
     {
         if (_case.expected == 0)
-            CHECK_EQ(0, CloseSession(ant_session));
-        CHECK_EQ(0, CloseAntService());
+            CHECK_EQ(0, CloseSession(ant_session))
+        if (search_thread.joinable())
+            CHECK_EQ(0, StopSearch(search_service, search_thread))
+        CHECK_EQ(0, CloseAntService())
         return 0;
     }
 
-    void * ant_handle;
     AntSession ant_session;
+    AntDevice** devices;
+    unsigned int num_devices;
 };
 
-class SessionClose : public test_suite
+/*class SessionClose : public test_suite
 {
 public:
     SessionClose()

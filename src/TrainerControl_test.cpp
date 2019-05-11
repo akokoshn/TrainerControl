@@ -58,13 +58,13 @@ int run_unit_tests()
         printf("test_add_device_for_search FAILED\n");
         res = -1;
     }
-    /*SessionInit test_session_init;
+    SessionInit test_session_init;
     if (false == test_session_init.run_case())
     {
         printf("test_session_init FAILED\n");
         res = -1;
     }
-    SessionClose test_session_close;
+    /*SessionClose test_session_close;
     if (false == test_session_close.run_case())
     {
         printf("test_session_close FAILED\n");

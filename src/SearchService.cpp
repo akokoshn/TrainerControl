@@ -36,6 +36,8 @@ SearchService::~SearchService()
     std::lock_guard<std::mutex> Guard(m_guard);
     LOG_MSG("Destroy search service");
     //TODO add cloasing channels
+    delete m_AntStick;
+    m_AntStick = nullptr;
     for (auto & it : m_pDevices)
         it.release();
     m_pDevices.shrink_to_fit();
