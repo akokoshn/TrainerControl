@@ -39,4 +39,3 @@ To run the application, open a command window and type:
 The application will try to find the ANT+ USB stick and connect to the heart
 rate monitor and bike trainer.  It will also accept TCP connections on port
 7500.
-
